@@ -28,7 +28,7 @@ interface Database {
 interface Server {
   id: number;
   server_id: string;
-  hostname: string;
+  os_type: string;
 }
 
 const DatabaseInventory: React.FC = () => {
@@ -39,7 +39,7 @@ const DatabaseInventory: React.FC = () => {
   const [editingDatabase, setEditingDatabase] = useState<Database | null>(null);
   const [form] = Form.useForm();
 
-  const API_BASE_URL = 'http://localhost:5000/api';
+  const API_BASE_URL = 'http://127.0.0.1:5000/api';
 
   // Fetch databases
   const fetchDatabases = async () => {
@@ -149,7 +149,7 @@ const DatabaseInventory: React.FC = () => {
       key: 'server_id',
       render: (serverId: string) => {
         const server = servers.find(s => s.server_id === serverId);
-        return server ? server.hostname : serverId;
+        return server ? server.server_id : serverId;
       },
     },
     {
@@ -356,7 +356,7 @@ const DatabaseInventory: React.FC = () => {
                 <Select placeholder="Select server">
                   {servers.map(server => (
                     <Option key={server.server_id} value={server.server_id}>
-                      {server.hostname} ({server.server_id})
+                      {server.server_id} ({server.os_type})
                     </Option>
                   ))}
                 </Select>

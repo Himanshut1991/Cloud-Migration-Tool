@@ -47,7 +47,7 @@ const ServerInventory: React.FC = () => {
 
   const fetchServers = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/servers');
+      const response = await fetch('http://127.0.0.1:5000/api/servers');
       const data = await response.json();
       setServers(data);
     } catch (error) {
@@ -60,8 +60,8 @@ const ServerInventory: React.FC = () => {
   const handleSubmit = async (values: any) => {
     try {
       const url = editingServer 
-        ? `http://localhost:5000/api/servers/${editingServer.id}`
-        : 'http://localhost:5000/api/servers';
+        ? `http://127.0.0.1:5000/api/servers/${editingServer.id}`
+        : 'http://127.0.0.1:5000/api/servers';
       
       const method = editingServer ? 'PUT' : 'POST';
       
@@ -95,7 +95,7 @@ const ServerInventory: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/servers/${id}`, {
+      const response = await fetch(`http://127.0.0.1:5000/api/servers/${id}`, {
         method: 'DELETE',
       });
 
