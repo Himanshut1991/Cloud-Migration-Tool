@@ -26,7 +26,7 @@ const ResourceRates: React.FC = () => {
   const [editingRate, setEditingRate] = useState<ResourceRate | null>(null);
   const [form] = Form.useForm();
 
-  const API_BASE_URL = 'http://localhost:5000/api';
+  const API_BASE_URL = 'http://127.0.0.1:5000/api';
 
   // Predefined roles with typical rates
   const predefinedRoles = [
@@ -46,7 +46,7 @@ const ResourceRates: React.FC = () => {
   const fetchResourceRates = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/resource_rates`);
+      const response = await axios.get(`${API_BASE_URL}/resource-rates`);
       setResourceRates(response.data);
     } catch (error) {
       message.error('Failed to fetch resource rates');
@@ -62,20 +62,25 @@ const ResourceRates: React.FC = () => {
 
   // Handle create/update resource rate
   const handleSubmit = async (values: ResourceRate) => {
+    console.log('Submitting values:', values);
+    console.log('Editing rate:', editingRate);
+    
     try {
-      if (editingRate) {
-        await axios.put(`${API_BASE_URL}/resource_rates/${editingRate.id}`, values);
+      if (editingRate?.id) {
+        console.log('Updating resource rate:', editingRate.id);
+        await axios.put(`${API_BASE_URL}/resource-rates/${editingRate.id}`, values);
         message.success('Resource rate updated successfully');
       } else {
-        await axios.post(`${API_BASE_URL}/resource_rates`, values);
+        console.log('Creating new resource rate');
+        await axios.post(`${API_BASE_URL}/resource-rates`, values);
         message.success('Resource rate created successfully');
       }
       setModalVisible(false);
       setEditingRate(null);
       form.resetFields();
-      fetchResourceRates();
+      await fetchResourceRates(); // Ensure data refreshes
     } catch (error) {
-      message.error(`Failed to ${editingRate ? 'update' : 'create'} resource rate`);
+      message.error(`Failed to ${editingRate?.id ? 'update' : 'create'} resource rate`);
       console.error('Error saving resource rate:', error);
     }
   };
@@ -83,7 +88,7 @@ const ResourceRates: React.FC = () => {
   // Handle delete resource rate
   const handleDelete = async (id: number) => {
     try {
-      await axios.delete(`${API_BASE_URL}/resource_rates/${id}`);
+      await axios.delete(`${API_BASE_URL}/resource-rates/${id}`);
       message.success('Resource rate deleted successfully');
       fetchResourceRates();
     } catch (error) {
@@ -92,8 +97,17 @@ const ResourceRates: React.FC = () => {
     }
   };
 
+  // Handle modal close/cancel
+  const handleModalCancel = () => {
+    console.log('Modal cancelled');
+    setModalVisible(false);
+    setEditingRate(null);
+    form.resetFields();
+  };
+
   // Handle edit resource rate
   const handleEdit = (rate: ResourceRate) => {
+    console.log('Editing rate:', rate);
     setEditingRate(rate);
     form.setFieldsValue(rate);
     setModalVisible(true);
@@ -101,6 +115,7 @@ const ResourceRates: React.FC = () => {
 
   // Handle add new resource rate
   const handleAdd = () => {
+    console.log('Adding new rate');
     setEditingRate(null);
     form.resetFields();
     setModalVisible(true);
@@ -277,11 +292,7 @@ const ResourceRates: React.FC = () => {
       <Modal
         title={`${editingRate ? 'Edit' : 'Add'} Resource Rate`}
         open={modalVisible}
-        onCancel={() => {
-          setModalVisible(false);
-          setEditingRate(null);
-          form.resetFields();
-        }}
+        onCancel={handleModalCancel}
         footer={null}
         width={600}
       >
@@ -304,13 +315,16 @@ const ResourceRates: React.FC = () => {
               placeholder="Select a role or type custom role"
               showSearch
               allowClear
+              filterOption={(input, option) =>
+                (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
+              }
               onChange={handleRoleChange}
               dropdownRender={(menu) => (
                 <div>
                   {menu}
                   <Divider style={{ margin: '8px 0' }} />
                   <Text type="secondary" style={{ padding: '0 12px', fontSize: '12px' }}>
-                    Or type a custom role name
+                    Select from dropdown or type custom role name
                   </Text>
                 </div>
               )}
@@ -394,7 +408,7 @@ const ResourceRates: React.FC = () => {
 
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
             <Space>
-              <Button onClick={() => setModalVisible(false)}>
+              <Button onClick={handleModalCancel}>
                 Cancel
               </Button>
               <Button type="primary" htmlType="submit">

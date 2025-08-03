@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Card, Form, Select, Input, Button, message, Typography, Row, Col,
-  Space, DatePicker, InputNumber, Alert, Divider
+  Space, DatePicker, InputNumber, Alert, Divider, Tag
 } from 'antd';
 import { ScheduleOutlined, SaveOutlined, ReloadOutlined, WarningOutlined } from '@ant-design/icons';
 import axios from 'axios';
@@ -26,7 +26,7 @@ const BusinessConstraints: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [businessConstraint, setBusinessConstraint] = useState<BusinessConstraint | null>(null);
 
-  const API_BASE_URL = 'http://localhost:5000/api';
+  const API_BASE_URL = 'http://127.0.0.1:5000/api';
 
   // Migration window options
   const migrationWindows = [
@@ -52,7 +52,7 @@ const BusinessConstraints: React.FC = () => {
   const fetchBusinessConstraints = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/business_constraints`);
+      const response = await axios.get(`${API_BASE_URL}/business-constraints`);
       if (response.data && response.data.length > 0) {
         const constraint = response.data[0]; // Assuming single configuration
         setBusinessConstraint(constraint);
@@ -86,13 +86,13 @@ const BusinessConstraints: React.FC = () => {
       };
 
       if (businessConstraint?.id) {
-        await axios.put(`${API_BASE_URL}/business_constraints/${businessConstraint.id}`, payload);
+        await axios.put(`${API_BASE_URL}/business-constraints/${businessConstraint.id}`, payload);
         message.success('Business constraints updated successfully');
       } else {
-        await axios.post(`${API_BASE_URL}/business_constraints`, payload);
+        await axios.post(`${API_BASE_URL}/business-constraints`, payload);
         message.success('Business constraints saved successfully');
       }
-      fetchBusinessConstraints();
+      await fetchBusinessConstraints(); // Ensure summary refreshes
     } catch (error) {
       message.error('Failed to save business constraints');
       console.error('Error saving business constraints:', error);
@@ -273,31 +273,132 @@ const BusinessConstraints: React.FC = () => {
         <Card 
           title="Current Constraints Summary" 
           style={{ marginTop: 24 }}
-          size="small"
         >
-          <Row gutter={16}>
+          <Row gutter={16} style={{ marginBottom: 16 }}>
             <Col span={6}>
               <Text strong>Migration Window:</Text>
-              <div>{businessConstraint.migration_window}</div>
+              <div style={{ marginTop: 4 }}>
+                <Tag color="blue" style={{ fontSize: '13px' }}>
+                  {businessConstraint.migration_window}
+                </Tag>
+              </div>
             </Col>
             <Col span={6}>
               <Text strong>Cutover Date:</Text>
-              <div>{dayjs(businessConstraint.cutover_date).format('MMM DD, YYYY')}</div>
+              <div style={{ marginTop: 4 }}>
+                <Tag color="green" style={{ fontSize: '13px' }}>
+                  {dayjs(businessConstraint.cutover_date).format('MMM DD, YYYY')}
+                </Tag>
+              </div>
             </Col>
             <Col span={6}>
               <Text strong>Downtime Tolerance:</Text>
-              <div>{businessConstraint.downtime_tolerance}</div>
+              <div style={{ marginTop: 4 }}>
+                <Tag color={
+                  businessConstraint.downtime_tolerance === 'None' || businessConstraint.downtime_tolerance === 'Very Low' ? 'red' :
+                  businessConstraint.downtime_tolerance === 'Low' ? 'orange' :
+                  businessConstraint.downtime_tolerance === 'Medium' ? 'yellow' : 'green'
+                } style={{ fontSize: '13px' }}>
+                  {businessConstraint.downtime_tolerance}
+                </Tag>
+              </div>
             </Col>
             <Col span={6}>
               <Text strong>Budget Cap:</Text>
-              <div>
-                {businessConstraint.budget_cap 
-                  ? `$${businessConstraint.budget_cap.toLocaleString()}` 
-                  : 'Not specified'
-                }
+              <div style={{ marginTop: 4 }}>
+                <Tag color="purple" style={{ fontSize: '13px' }}>
+                  {businessConstraint.budget_cap 
+                    ? `$${businessConstraint.budget_cap.toLocaleString()}` 
+                    : 'Not specified'
+                  }
+                </Tag>
               </div>
             </Col>
           </Row>
+
+          {/* Timeline Analysis */}
+          <Divider style={{ margin: '12px 0' }} />
+          <Row gutter={16}>
+            <Col span={8}>
+              <Text strong>📅 Timeline Analysis:</Text>
+              <div style={{ fontSize: '12px', marginTop: 4 }}>
+                {(() => {
+                  const daysUntil = dayjs(businessConstraint.cutover_date).diff(dayjs(), 'day');
+                  const weeks = Math.floor(daysUntil / 7);
+                  
+                  if (daysUntil < 0) {
+                    return <Text type="danger">⚠️ Cutover date has passed!</Text>;
+                  } else if (daysUntil < 30) {
+                    return <Text type="warning">⚡ Urgent: {daysUntil} days ({weeks} weeks) remaining</Text>;
+                  } else if (daysUntil < 90) {
+                    return <Text type="secondary">🎯 On track: {daysUntil} days ({weeks} weeks) remaining</Text>;
+                  } else {
+                    return <Text type="success">✅ Good timeline: {daysUntil} days ({weeks} weeks) remaining</Text>;
+                  }
+                })()}
+              </div>
+            </Col>
+            <Col span={8}>
+              <Text strong>💰 Budget Analysis:</Text>
+              <div style={{ fontSize: '12px', marginTop: 4 }}>
+                {businessConstraint.budget_cap ? (
+                  <div>
+                    Budget allocated: ${businessConstraint.budget_cap.toLocaleString()}
+                    <br />
+                    <Text type="secondary">Track spending against this cap</Text>
+                  </div>
+                ) : (
+                  <Text type="secondary">No budget cap specified - monitor costs carefully</Text>
+                )}
+              </div>
+            </Col>
+            <Col span={8}>
+              <Text strong>🔧 Migration Strategy:</Text>
+              <div style={{ fontSize: '12px', marginTop: 4 }}>
+                {businessConstraint.downtime_tolerance === 'None' && 'Blue-green or rolling deployment required'}
+                {businessConstraint.downtime_tolerance === 'Very Low' && 'Minimal downtime strategy needed'}
+                {businessConstraint.downtime_tolerance === 'Low' && 'Quick cutover with thorough testing'}
+                {businessConstraint.downtime_tolerance === 'Medium' && 'Standard migration approach acceptable'}
+                {(businessConstraint.downtime_tolerance === 'High' || businessConstraint.downtime_tolerance === 'Very High') && 'Flexible migration windows available'}
+              </div>
+            </Col>
+          </Row>
+
+          {/* Risk Assessment */}
+          <Divider style={{ margin: '12px 0' }} />
+          <Text strong>🎯 Risk Assessment:</Text>
+          <div style={{ display: 'flex', gap: '8px', marginTop: 8, flexWrap: 'wrap' }}>
+            {(() => {
+              const risks: React.ReactElement[] = [];
+              const daysUntil = dayjs(businessConstraint.cutover_date).diff(dayjs(), 'day');
+              
+              if (daysUntil < 30) {
+                risks.push(<Tag color="red" key="timeline">⚠️ Tight Timeline</Tag>);
+              }
+              
+              if (businessConstraint.downtime_tolerance === 'None' || businessConstraint.downtime_tolerance === 'Very Low') {
+                risks.push(<Tag color="orange" key="downtime">⚡ Zero-Downtime Required</Tag>);
+              }
+              
+              if (businessConstraint.migration_window === 'Weekends Only') {
+                risks.push(<Tag color="yellow" key="window">📅 Limited Migration Windows</Tag>);
+              }
+              
+              if (!businessConstraint.budget_cap) {
+                risks.push(<Tag color="purple" key="budget">💰 No Budget Cap</Tag>);
+              }
+              
+              if (risks.length === 0) {
+                risks.push(<Tag color="green" key="good">✅ Low Risk Profile</Tag>);
+              }
+              
+              return risks;
+            })()}
+          </div>
+
+          <div style={{ marginTop: 16, fontSize: '11px', color: '#666' }}>
+            Last updated: {businessConstraint.updated_at ? new Date(businessConstraint.updated_at).toLocaleString() : 'N/A'}
+          </div>
         </Card>
       )}
 

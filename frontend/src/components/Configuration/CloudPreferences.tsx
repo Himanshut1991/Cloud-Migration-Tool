@@ -26,7 +26,7 @@ const CloudPreferences: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [cloudPreference, setCloudPreference] = useState<CloudPreference | null>(null);
 
-  const API_BASE_URL = 'http://localhost:5000/api';
+  const API_BASE_URL = 'http://127.0.0.1:5000/api';
 
   // Cloud provider configurations
   const cloudProviders = {
@@ -79,7 +79,7 @@ const CloudPreferences: React.FC = () => {
   const fetchCloudPreferences = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/cloud_preferences`);
+      const response = await axios.get(`${API_BASE_URL}/cloud-preferences`);
       if (response.data && response.data.length > 0) {
         const preference = response.data[0]; // Assuming single configuration
         setCloudPreference(preference);
@@ -118,13 +118,13 @@ const CloudPreferences: React.FC = () => {
       };
 
       if (cloudPreference?.id) {
-        await axios.put(`${API_BASE_URL}/cloud_preferences/${cloudPreference.id}`, payload);
+        await axios.put(`${API_BASE_URL}/cloud-preferences/${cloudPreference.id}`, payload);
         message.success('Cloud preferences updated successfully');
       } else {
-        await axios.post(`${API_BASE_URL}/cloud_preferences`, payload);
+        await axios.post(`${API_BASE_URL}/cloud-preferences`, payload);
         message.success('Cloud preferences saved successfully');
       }
-      fetchCloudPreferences();
+      await fetchCloudPreferences(); // Ensure summary refreshes
     } catch (error) {
       message.error('Failed to save cloud preferences');
       console.error('Error saving cloud preferences:', error);
@@ -298,35 +298,112 @@ const CloudPreferences: React.FC = () => {
         <Card 
           title="Current Configuration Summary" 
           style={{ marginTop: 24 }}
-          size="small"
         >
-          <Row gutter={16}>
+          <Row gutter={16} style={{ marginBottom: 16 }}>
             <Col span={6}>
               <Text strong>Provider:</Text>
-              <div>{cloudPreference.cloud_provider}</div>
+              <div style={{ marginTop: 4 }}>
+                <Tag color={
+                  cloudPreference.cloud_provider === 'AWS' ? 'orange' : 
+                  cloudPreference.cloud_provider === 'Azure' ? 'blue' : 'green'
+                } style={{ fontSize: '14px' }}>
+                  {cloudPreference.cloud_provider}
+                </Tag>
+              </div>
             </Col>
             <Col span={6}>
               <Text strong>Region:</Text>
-              <div>{cloudPreference.region}</div>
+              <div style={{ marginTop: 4 }}>
+                <Tag color="geekblue">{cloudPreference.region}</Tag>
+              </div>
             </Col>
             <Col span={6}>
               <Text strong>Network:</Text>
-              <div>{cloudPreference.network_config}</div>
+              <div style={{ marginTop: 4 }}>
+                <Tag color="cyan">{cloudPreference.network_config}</Tag>
+              </div>
             </Col>
             <Col span={6}>
               <Text strong>Services:</Text>
-              <div>
+              <div style={{ marginTop: 4 }}>
                 {(() => {
                   try {
                     const services = JSON.parse(cloudPreference.preferred_services || '[]');
-                    return services.length > 0 ? `${services.length} selected` : 'None';
+                    return services.length > 0 ? (
+                      <Tag color="purple">{services.length} selected</Tag>
+                    ) : (
+                      <Tag color="default">None selected</Tag>
+                    );
                   } catch {
-                    return 'None';
+                    return <Tag color="default">None selected</Tag>;
                   }
                 })()}
               </div>
             </Col>
           </Row>
+
+          {/* Detailed Services List */}
+          {(() => {
+            try {
+              const services = JSON.parse(cloudPreference.preferred_services || '[]');
+              if (services.length > 0) {
+                return (
+                  <div>
+                    <Divider style={{ margin: '12px 0' }} />
+                    <Text strong>Selected Services:</Text>
+                    <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                      {services.map((service: string, index: number) => (
+                        <Tag 
+                          key={index} 
+                          color={
+                            cloudPreference.cloud_provider === 'AWS' ? 'orange' : 
+                            cloudPreference.cloud_provider === 'Azure' ? 'blue' : 'green'
+                          }
+                          style={{ marginBottom: '4px' }}
+                        >
+                          {service}
+                        </Tag>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            } catch {
+              return null;
+            }
+          })()}
+
+          {/* Configuration Insights */}
+          <Divider style={{ margin: '12px 0' }} />
+          <Row gutter={16}>
+            <Col span={8}>
+              <Text strong>💡 Cost Optimization:</Text>
+              <div style={{ fontSize: '12px', marginTop: 4 }}>
+                {cloudPreference.cloud_provider === 'AWS' && 'Consider Reserved Instances for predictable workloads'}
+                {cloudPreference.cloud_provider === 'Azure' && 'Explore Azure Hybrid Benefit for cost savings'}
+                {cloudPreference.cloud_provider === 'GCP' && 'Use Sustained Use Discounts for long-running VMs'}
+              </div>
+            </Col>
+            <Col span={8}>
+              <Text strong>🔧 Best Practices:</Text>
+              <div style={{ fontSize: '12px', marginTop: 4 }}>
+                {cloudPreference.network_config === 'Public Cloud' && 'Implement proper security groups and NACLs'}
+                {cloudPreference.network_config === 'Virtual Private Cloud (VPC)' && 'Design multi-AZ architecture for HA'}
+                {cloudPreference.network_config === 'Hybrid Cloud' && 'Plan secure connectivity between environments'}
+              </div>
+            </Col>
+            <Col span={8}>
+              <Text strong>⚡ Performance:</Text>
+              <div style={{ fontSize: '12px', marginTop: 4 }}>
+                Select region closest to users for lowest latency. Consider multi-region deployment for global applications.
+              </div>
+            </Col>
+          </Row>
+
+          <div style={{ marginTop: 12, fontSize: '11px', color: '#666' }}>
+            Last updated: {cloudPreference.updated_at ? new Date(cloudPreference.updated_at).toLocaleString() : 'N/A'}
+          </div>
         </Card>
       )}
     </div>

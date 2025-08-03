@@ -710,6 +710,167 @@ def delete_file_share(file_share_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
+# Cloud Preferences API endpoints
+@app.route('/api/cloud-preferences', methods=['GET'])
+def get_cloud_preferences():
+    """Get cloud preferences (returns the first/only record)"""
+    try:
+        preference = CloudPreference.query.first()
+        if preference:
+            return jsonify({
+                'id': preference.id,
+                'cloud_provider': preference.cloud_provider,
+                'region': preference.region,
+                'preferred_services': preference.preferred_services,
+                'network_config': preference.network_config,
+                'created_at': preference.created_at.isoformat(),
+                'updated_at': preference.updated_at.isoformat()
+            })
+        else:
+            return jsonify(None)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/cloud-preferences', methods=['POST'])
+def create_or_update_cloud_preferences():
+    """Create or update cloud preferences"""
+    try:
+        data = request.get_json()
+        preference = CloudPreference.query.first()
+        
+        if preference:
+            # Update existing
+            preference.cloud_provider = data['cloud_provider']
+            preference.region = data['region']
+            preference.preferred_services = data['preferred_services']
+            preference.network_config = data['network_config']
+        else:
+            # Create new
+            preference = CloudPreference(
+                cloud_provider=data['cloud_provider'],
+                region=data['region'],
+                preferred_services=data['preferred_services'],
+                network_config=data['network_config']
+            )
+            db.session.add(preference)
+        
+        db.session.commit()
+        return jsonify({'message': 'Cloud preferences saved successfully', 'id': preference.id}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# Business Constraints API endpoints
+@app.route('/api/business-constraints', methods=['GET'])
+def get_business_constraints():
+    """Get business constraints (returns the first/only record)"""
+    try:
+        constraint = BusinessConstraint.query.first()
+        if constraint:
+            return jsonify({
+                'id': constraint.id,
+                'migration_window': constraint.migration_window,
+                'cutover_date': constraint.cutover_date.isoformat(),
+                'downtime_tolerance': constraint.downtime_tolerance,
+                'budget_cap': constraint.budget_cap,
+                'created_at': constraint.created_at.isoformat(),
+                'updated_at': constraint.updated_at.isoformat()
+            })
+        else:
+            return jsonify(None)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/business-constraints', methods=['POST'])
+def create_or_update_business_constraints():
+    """Create or update business constraints"""
+    try:
+        data = request.get_json()
+        constraint = BusinessConstraint.query.first()
+        
+        if constraint:
+            # Update existing
+            constraint.migration_window = data['migration_window']
+            constraint.cutover_date = datetime.strptime(data['cutover_date'], '%Y-%m-%d').date()
+            constraint.downtime_tolerance = data['downtime_tolerance']
+            constraint.budget_cap = data.get('budget_cap')
+        else:
+            # Create new
+            constraint = BusinessConstraint(
+                migration_window=data['migration_window'],
+                cutover_date=datetime.strptime(data['cutover_date'], '%Y-%m-%d').date(),
+                downtime_tolerance=data['downtime_tolerance'],
+                budget_cap=data.get('budget_cap')
+            )
+            db.session.add(constraint)
+        
+        db.session.commit()
+        return jsonify({'message': 'Business constraints saved successfully', 'id': constraint.id}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# Resource Rates API endpoints
+@app.route('/api/resource-rates', methods=['GET'])
+def get_resource_rates():
+    """Get all resource rates"""
+    try:
+        rates = ResourceRate.query.all()
+        return jsonify([{
+            'id': r.id,
+            'role': r.role,
+            'duration_weeks': r.duration_weeks,
+            'hours_per_week': r.hours_per_week,
+            'rate_per_hour': r.rate_per_hour,
+            'created_at': r.created_at.isoformat(),
+            'updated_at': r.updated_at.isoformat()
+        } for r in rates])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/resource-rates', methods=['POST'])
+def create_resource_rate():
+    """Create a new resource rate"""
+    try:
+        data = request.get_json()
+        rate = ResourceRate(
+            role=data['role'],
+            duration_weeks=data['duration_weeks'],
+            hours_per_week=data['hours_per_week'],
+            rate_per_hour=data['rate_per_hour']
+        )
+        db.session.add(rate)
+        db.session.commit()
+        return jsonify({'message': 'Resource rate added successfully', 'id': rate.id}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/resource-rates/<int:rate_id>', methods=['PUT'])
+def update_resource_rate(rate_id):
+    """Update a resource rate"""
+    try:
+        rate = ResourceRate.query.get_or_404(rate_id)
+        data = request.get_json()
+        
+        rate.role = data.get('role', rate.role)
+        rate.duration_weeks = data.get('duration_weeks', rate.duration_weeks)
+        rate.hours_per_week = data.get('hours_per_week', rate.hours_per_week)
+        rate.rate_per_hour = data.get('rate_per_hour', rate.rate_per_hour)
+        
+        db.session.commit()
+        return jsonify({'message': 'Resource rate updated successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/resource-rates/<int:rate_id>', methods=['DELETE'])
+def delete_resource_rate(rate_id):
+    """Delete a resource rate"""
+    try:
+        rate = ResourceRate.query.get_or_404(rate_id)
+        db.session.delete(rate)
+        db.session.commit()
+        return '', 204
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
