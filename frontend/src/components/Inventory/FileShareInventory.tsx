@@ -12,14 +12,14 @@ const { Option } = Select;
 interface FileShare {
   id?: number;
   share_name: string;
-  share_type: string;
-  size_gb: number;
-  file_count: number;
+  total_size_gb: number;
   access_pattern: string;
-  backup_required: boolean;
+  snapshot_required: boolean;
+  retention_days: number;
   server_id: string;
-  location: string;
-  security_model: string;
+  write_frequency: string;
+  downtime_tolerance: string;
+  real_time_sync: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -123,34 +123,33 @@ const FileShareInventory: React.FC = () => {
       sorter: (a: FileShare, b: FileShare) => a.share_name.localeCompare(b.share_name),
     },
     {
-      title: 'Type',
-      dataIndex: 'share_type',
-      key: 'share_type',
-    },
-    {
       title: 'Size (GB)',
-      dataIndex: 'size_gb',
-      key: 'size_gb',
-      sorter: (a: FileShare, b: FileShare) => a.size_gb - b.size_gb,
+      dataIndex: 'total_size_gb',
+      key: 'total_size_gb',
+      sorter: (a: FileShare, b: FileShare) => a.total_size_gb - b.total_size_gb,
       render: (size: number) => `${size.toLocaleString()} GB`,
-    },
-    {
-      title: 'File Count',
-      dataIndex: 'file_count',
-      key: 'file_count',
-      sorter: (a: FileShare, b: FileShare) => a.file_count - b.file_count,
-      render: (count: number) => count.toLocaleString(),
     },
     {
       title: 'Access Pattern',
       dataIndex: 'access_pattern',
       key: 'access_pattern',
       filters: [
-        { text: 'Frequent', value: 'Frequent' },
-        { text: 'Infrequent', value: 'Infrequent' },
-        { text: 'Archive', value: 'Archive' },
+        { text: 'Hot', value: 'Hot' },
+        { text: 'Warm', value: 'Warm' },
+        { text: 'Cold', value: 'Cold' },
       ],
       onFilter: (value: any, record: FileShare) => record.access_pattern === value,
+    },
+    {
+      title: 'Write Frequency',
+      dataIndex: 'write_frequency',
+      key: 'write_frequency',
+      filters: [
+        { text: 'High', value: 'High' },
+        { text: 'Medium', value: 'Medium' },
+        { text: 'Low', value: 'Low' },
+      ],
+      onFilter: (value: any, record: FileShare) => record.write_frequency === value,
     },
     {
       title: 'Server',
@@ -162,20 +161,21 @@ const FileShareInventory: React.FC = () => {
       },
     },
     {
-      title: 'Location',
-      dataIndex: 'location',
-      key: 'location',
-    },
-    {
-      title: 'Backup Required',
-      dataIndex: 'backup_required',
-      key: 'backup_required',
-      render: (backup: boolean) => backup ? 'Yes' : 'No',
+      title: 'Snapshot Required',
+      dataIndex: 'snapshot_required',
+      key: 'snapshot_required',
+      render: (snapshot: boolean) => snapshot ? 'Yes' : 'No',
       filters: [
         { text: 'Yes', value: true },
         { text: 'No', value: false },
       ],
-      onFilter: (value: any, record: FileShare) => record.backup_required === value,
+      onFilter: (value: any, record: FileShare) => record.snapshot_required === value,
+    },
+    {
+      title: 'Retention (Days)',
+      dataIndex: 'retention_days',
+      key: 'retention_days',
+      sorter: (a: FileShare, b: FileShare) => a.retention_days - b.retention_days,
     },
     {
       title: 'Actions',
@@ -314,25 +314,8 @@ const FileShareInventory: React.FC = () => {
             </Col>
             <Col span={12}>
               <Form.Item
-                name="share_type"
-                label="Share Type"
-                rules={[{ required: true, message: 'Please select share type' }]}
-              >
-                <Select>
-                  <Option value="CIFS">CIFS</Option>
-                  <Option value="NFS">NFS</Option>
-                  <Option value="FTP">FTP</Option>
-                  <Option value="SMB">SMB</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="size_gb"
-                label="Size (GB)"
+                name="total_size_gb"
+                label="Total Size (GB)"
                 rules={[{ required: true, message: 'Please enter size' }]}
               >
                 <InputNumber
@@ -342,22 +325,22 @@ const FileShareInventory: React.FC = () => {
                 />
               </Form.Item>
             </Col>
-            <Col span={12}>
-              <Form.Item
-                name="file_count"
-                label="File Count"
-                rules={[{ required: true, message: 'Please enter file count' }]}
-              >
-                <InputNumber
-                  min={1}
-                  placeholder="Enter number of files"
-                  style={{ width: '100%' }}
-                />
-              </Form.Item>
-            </Col>
           </Row>
 
           <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="write_frequency"
+                label="Write Frequency"
+                rules={[{ required: true, message: 'Please select write frequency' }]}
+              >
+                <Select>
+                  <Option value="High">High</Option>
+                  <Option value="Medium">Medium</Option>
+                  <Option value="Low">Low</Option>
+                </Select>
+              </Form.Item>
+            </Col>
             <Col span={12}>
               <Form.Item
                 name="access_pattern"
@@ -365,12 +348,15 @@ const FileShareInventory: React.FC = () => {
                 rules={[{ required: true, message: 'Please select access pattern' }]}
               >
                 <Select>
-                  <Option value="Frequent">Frequent</Option>
-                  <Option value="Infrequent">Infrequent</Option>
-                  <Option value="Archive">Archive</Option>
+                  <Option value="Hot">Hot</Option>
+                  <Option value="Warm">Warm</Option>
+                  <Option value="Cold">Cold</Option>
                 </Select>
               </Form.Item>
             </Col>
+          </Row>
+
+          <Row gutter={16}>
             <Col span={12}>
               <Form.Item
                 name="server_id"
@@ -386,28 +372,16 @@ const FileShareInventory: React.FC = () => {
                 </Select>
               </Form.Item>
             </Col>
-          </Row>
-
-          <Row gutter={16}>
             <Col span={12}>
               <Form.Item
-                name="location"
-                label="Location"
-                rules={[{ required: true, message: 'Please enter location' }]}
-              >
-                <Input placeholder="Enter file share location" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="security_model"
-                label="Security Model"
-                rules={[{ required: true, message: 'Please select security model' }]}
+                name="downtime_tolerance"
+                label="Downtime Tolerance"
+                rules={[{ required: true, message: 'Please select downtime tolerance' }]}
               >
                 <Select>
-                  <Option value="NTFS">NTFS</Option>
-                  <Option value="POSIX">POSIX</Option>
-                  <Option value="ACL">ACL</Option>
+                  <Option value="High">High</Option>
+                  <Option value="Medium">Medium</Option>
+                  <Option value="Low">Low</Option>
                 </Select>
               </Form.Item>
             </Col>
@@ -416,11 +390,35 @@ const FileShareInventory: React.FC = () => {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
-                name="backup_required"
+                name="retention_days"
+                label="Retention Days"
+                rules={[{ required: true, message: 'Please enter retention days' }]}
+              >
+                <InputNumber
+                  min={1}
+                  placeholder="Enter retention days"
+                  style={{ width: '100%' }}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="snapshot_required"
                 valuePropName="checked"
                 style={{ marginTop: '30px' }}
               >
-                <Switch /> Backup Required
+                <Switch /> Snapshot Required
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="real_time_sync"
+                valuePropName="checked"
+              >
+                <Switch /> Real-time Sync Required
               </Form.Item>
             </Col>
           </Row>

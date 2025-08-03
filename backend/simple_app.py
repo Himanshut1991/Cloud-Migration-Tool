@@ -473,11 +473,16 @@ def get_databases():
         databases = Database.query.all()
         return jsonify([{
             'id': d.id,
-            'name': d.name,
-            'type': d.type,
-            'version': d.version,
+            'db_name': d.db_name,
+            'db_type': d.db_type,
             'size_gb': d.size_gb,
+            'ha_dr_required': d.ha_dr_required,
+            'backup_frequency': d.backup_frequency,
+            'licensing_model': d.licensing_model,
             'server_id': d.server_id,
+            'write_frequency': d.write_frequency,
+            'downtime_tolerance': d.downtime_tolerance,
+            'real_time_sync': d.real_time_sync,
             'created_at': d.created_at.isoformat()
         } for d in databases])
     except Exception as e:
@@ -489,11 +494,16 @@ def create_database():
     try:
         data = request.get_json()
         database = Database(
-            name=data['name'],
-            type=data['type'],
-            version=data['version'],
+            db_name=data['db_name'],
+            db_type=data['db_type'],
             size_gb=data['size_gb'],
-            server_id=data['server_id']
+            ha_dr_required=data.get('ha_dr_required', False),
+            backup_frequency=data['backup_frequency'],
+            licensing_model=data['licensing_model'],
+            server_id=data['server_id'],
+            write_frequency=data['write_frequency'],
+            downtime_tolerance=data['downtime_tolerance'],
+            real_time_sync=data.get('real_time_sync', False)
         )
         db.session.add(database)
         db.session.commit()
@@ -508,11 +518,16 @@ def update_database(database_id):
         database = Database.query.get_or_404(database_id)
         data = request.get_json()
         
-        database.name = data.get('name', database.name)
-        database.type = data.get('type', database.type)
-        database.version = data.get('version', database.version)
+        database.db_name = data.get('db_name', database.db_name)
+        database.db_type = data.get('db_type', database.db_type)
         database.size_gb = data.get('size_gb', database.size_gb)
+        database.ha_dr_required = data.get('ha_dr_required', database.ha_dr_required)
+        database.backup_frequency = data.get('backup_frequency', database.backup_frequency)
+        database.licensing_model = data.get('licensing_model', database.licensing_model)
         database.server_id = data.get('server_id', database.server_id)
+        database.write_frequency = data.get('write_frequency', database.write_frequency)
+        database.downtime_tolerance = data.get('downtime_tolerance', database.downtime_tolerance)
+        database.real_time_sync = data.get('real_time_sync', database.real_time_sync)
         
         db.session.commit()
         return jsonify({'message': 'Database updated successfully'})
@@ -627,12 +642,14 @@ def get_file_shares():
         return jsonify([{
             'id': f.id,
             'share_name': f.share_name,
-            'share_type': f.share_type,
             'total_size_gb': f.total_size_gb,
-            'file_count': f.file_count,
             'access_pattern': f.access_pattern,
-            'backup_required': f.backup_required,
-            'os_type': f.os_type,
+            'snapshot_required': f.snapshot_required,
+            'retention_days': f.retention_days,
+            'server_id': f.server_id,
+            'write_frequency': f.write_frequency,
+            'downtime_tolerance': f.downtime_tolerance,
+            'real_time_sync': f.real_time_sync,
             'created_at': f.created_at.isoformat()
         } for f in file_shares])
     except Exception as e:
@@ -645,12 +662,14 @@ def create_file_share():
         data = request.get_json()
         file_share = FileShare(
             share_name=data['share_name'],
-            share_type=data['share_type'],
             total_size_gb=data['total_size_gb'],
-            file_count=data['file_count'],
             access_pattern=data['access_pattern'],
-            backup_required=data['backup_required'],
-            os_type=data['os_type']
+            snapshot_required=data.get('snapshot_required', False),
+            retention_days=data['retention_days'],
+            server_id=data['server_id'],
+            write_frequency=data['write_frequency'],
+            downtime_tolerance=data['downtime_tolerance'],
+            real_time_sync=data.get('real_time_sync', False)
         )
         db.session.add(file_share)
         db.session.commit()
@@ -666,12 +685,14 @@ def update_file_share(file_share_id):
         data = request.get_json()
         
         file_share.share_name = data.get('share_name', file_share.share_name)
-        file_share.share_type = data.get('share_type', file_share.share_type)
         file_share.total_size_gb = data.get('total_size_gb', file_share.total_size_gb)
-        file_share.file_count = data.get('file_count', file_share.file_count)
         file_share.access_pattern = data.get('access_pattern', file_share.access_pattern)
-        file_share.backup_required = data.get('backup_required', file_share.backup_required)
-        file_share.os_type = data.get('os_type', file_share.os_type)
+        file_share.snapshot_required = data.get('snapshot_required', file_share.snapshot_required)
+        file_share.retention_days = data.get('retention_days', file_share.retention_days)
+        file_share.server_id = data.get('server_id', file_share.server_id)
+        file_share.write_frequency = data.get('write_frequency', file_share.write_frequency)
+        file_share.downtime_tolerance = data.get('downtime_tolerance', file_share.downtime_tolerance)
+        file_share.real_time_sync = data.get('real_time_sync', file_share.real_time_sync)
         
         db.session.commit()
         return jsonify({'message': 'File share updated successfully'})
