@@ -73,6 +73,7 @@ const DatabaseInventory: React.FC = () => {
   // Handle create/update database
   const handleSubmit = async (values: Database) => {
     try {
+      console.log('Submitting database values:', values);
       if (editingDatabase) {
         await axios.put(`${API_BASE_URL}/databases/${editingDatabase.id}`, values);
         message.success('Database updated successfully');
@@ -427,13 +428,27 @@ const DatabaseInventory: React.FC = () => {
 
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="ha_dr_required" valuePropName="checked">
-                <Switch /> HA/DR Required
+              <Form.Item 
+                name="ha_dr_required" 
+                label="HA/DR Required"
+                rules={[{ required: true, message: 'Please select HA/DR requirement' }]}
+              >
+                <Select placeholder="Select HA/DR requirement">
+                  <Option value={true}>Yes</Option>
+                  <Option value={false}>No</Option>
+                </Select>
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="real_time_sync" valuePropName="checked">
-                <Switch /> Real-time Synchronization
+              <Form.Item 
+                name="real_time_sync" 
+                label="Real-time Synchronization"
+                rules={[{ required: true, message: 'Please select sync requirement' }]}
+              >
+                <Select placeholder="Select sync requirement">
+                  <Option value={true}>Yes</Option>
+                  <Option value={false}>No</Option>
+                </Select>
               </Form.Item>
             </Col>
           </Row>

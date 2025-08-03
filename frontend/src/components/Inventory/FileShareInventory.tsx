@@ -72,6 +72,7 @@ const FileShareInventory: React.FC = () => {
   // Handle create/update file share
   const handleSubmit = async (values: FileShare) => {
     try {
+      console.log('Submitting file share values:', values);
       if (editingFileShare) {
         await axios.put(`${API_BASE_URL}/file-shares/${editingFileShare.id}`, values);
         message.success('File share updated successfully');
@@ -404,10 +405,13 @@ const FileShareInventory: React.FC = () => {
             <Col span={12}>
               <Form.Item
                 name="snapshot_required"
-                valuePropName="checked"
-                style={{ marginTop: '30px' }}
+                label="Snapshot Required"
+                rules={[{ required: true, message: 'Please select snapshot requirement' }]}
               >
-                <Switch /> Snapshot Required
+                <Select placeholder="Select snapshot requirement">
+                  <Option value={true}>Yes</Option>
+                  <Option value={false}>No</Option>
+                </Select>
               </Form.Item>
             </Col>
           </Row>
@@ -416,9 +420,13 @@ const FileShareInventory: React.FC = () => {
             <Col span={12}>
               <Form.Item
                 name="real_time_sync"
-                valuePropName="checked"
+                label="Real-time Sync Required"
+                rules={[{ required: true, message: 'Please select sync requirement' }]}
               >
-                <Switch /> Real-time Sync Required
+                <Select placeholder="Select sync requirement">
+                  <Option value={true}>Yes</Option>
+                  <Option value={false}>No</Option>
+                </Select>
               </Form.Item>
             </Col>
           </Row>
