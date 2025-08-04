@@ -25,6 +25,7 @@ const ResourceRates: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRate, setEditingRate] = useState<ResourceRate | null>(null);
   const [form] = Form.useForm();
+  const [previewCost, setPreviewCost] = useState<number>(0);
 
   const API_BASE_URL = 'http://127.0.0.1:5000/api';
 
@@ -59,6 +60,21 @@ const ResourceRates: React.FC = () => {
   useEffect(() => {
     fetchResourceRates();
   }, []);
+
+  // Calculate preview cost
+  const updatePreviewCost = (changedFields?: any, allFields?: any) => {
+    const values = form.getFieldsValue();
+    const duration = values.duration_weeks || 0;
+    const hours = values.hours_per_week || 0;
+    const rate = values.rate_per_hour || 0;
+    const total = duration * hours * rate;
+    setPreviewCost(total);
+  };
+
+  // Update preview when form values change
+  useEffect(() => {
+    updatePreviewCost();
+  }, [form]);
 
   // Handle create/update resource rate
   const handleSubmit = async (values: ResourceRate) => {
@@ -99,25 +115,31 @@ const ResourceRates: React.FC = () => {
 
   // Handle modal close/cancel
   const handleModalCancel = () => {
-    console.log('Modal cancelled');
     setModalVisible(false);
     setEditingRate(null);
+    setPreviewCost(0);
     form.resetFields();
   };
 
   // Handle edit resource rate
   const handleEdit = (rate: ResourceRate) => {
-    console.log('Editing rate:', rate);
     setEditingRate(rate);
     form.setFieldsValue(rate);
+    setPreviewCost(rate.duration_weeks * rate.hours_per_week * rate.rate_per_hour);
     setModalVisible(true);
   };
 
   // Handle add new resource rate
   const handleAdd = () => {
-    console.log('Adding new rate');
     setEditingRate(null);
     form.resetFields();
+    // Set initial values when adding
+    form.setFieldsValue({
+      duration_weeks: 12,
+      hours_per_week: 40,
+      rate_per_hour: 125
+    });
+    setPreviewCost(12 * 40 * 125); // Calculate initial preview
     setModalVisible(true);
   };
 
@@ -295,16 +317,15 @@ const ResourceRates: React.FC = () => {
         onCancel={handleModalCancel}
         footer={null}
         width={600}
+        destroyOnClose={true}
+        maskClosable={false}
       >
         <Form
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
-          initialValues={{
-            duration_weeks: 12,
-            hours_per_week: 40,
-            rate_per_hour: 125
-          }}
+          onValuesChange={updatePreviewCost}
+          preserve={false}
         >
           <Form.Item
             name="role"
@@ -315,9 +336,7 @@ const ResourceRates: React.FC = () => {
               placeholder="Select a role or type custom role"
               showSearch
               allowClear
-              filterOption={(input, option) =>
-                (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
-              }
+              optionFilterProp="children"
               onChange={handleRoleChange}
               dropdownRender={(menu) => (
                 <div>
@@ -388,18 +407,16 @@ const ResourceRates: React.FC = () => {
           </Form.Item>
 
           {/* Cost Preview */}
-          {Form.useWatch('duration_weeks', form) && Form.useWatch('hours_per_week', form) && Form.useWatch('rate_per_hour', form) && (
+          {previewCost > 0 && (
             <Card size="small" style={{ marginBottom: 16, backgroundColor: '#f6f8fa' }}>
               <Text strong>Cost Preview:</Text>
               <div style={{ marginTop: 8 }}>
                 <Text>
-                  {Form.useWatch('duration_weeks', form)} weeks × {' '}
-                  {Form.useWatch('hours_per_week', form)} hours/week × {' '}
-                  ${Form.useWatch('rate_per_hour', form)}/hour = {' '}
+                  {form.getFieldValue('duration_weeks') || 0} weeks × {' '}
+                  {form.getFieldValue('hours_per_week') || 0} hours/week × {' '}
+                  ${form.getFieldValue('rate_per_hour') || 0}/hour = {' '}
                   <Text strong style={{ color: '#52c41a' }}>
-                    ${((Form.useWatch('duration_weeks', form) || 0) * 
-                       (Form.useWatch('hours_per_week', form) || 0) * 
-                       (Form.useWatch('rate_per_hour', form) || 0)).toLocaleString()}
+                    ${previewCost.toLocaleString()}
                   </Text>
                 </Text>
               </div>
