@@ -1,13 +1,24 @@
 import json
 import boto3
-from models import Server, Database, FileShare, CloudPreference
+from models_new import init_models
+from .ai_recommendations import AIRecommendationService
 
 class MigrationAdvisor:
     """AI-powered migration strategy advisor using AWS Bedrock"""
     
-    def __init__(self, db, bedrock_client):
+    def __init__(self, db, models, bedrock_client=None):
         self.db = db
+        self.models = models
         self.bedrock_client = bedrock_client
+        
+        # Initialize AI service
+        self.ai_service = AIRecommendationService()
+        
+        # Model references
+        self.Server = models['Server']
+        self.Database = models['Database']
+        self.FileShare = models['FileShare']
+        self.CloudPreference = models['CloudPreference']
         
         # Technology mapping for different cloud providers
         self.technology_mappings = {
@@ -64,7 +75,7 @@ class MigrationAdvisor:
                 'migration_tools': migration_tools,
                 'cost_estimate': cost_estimate,
                 'timeline': timeline,
-                'risk_assessment': self._assess_migration_risks(component, component_type)
+                'risk_assessment': self._assess_component_migration_risks(component, component_type)
             }
             
         except Exception as e:
@@ -106,6 +117,365 @@ class MigrationAdvisor:
         except Exception as e:
             return {'error': f'Failed to generate server migration strategy: {str(e)}'}
     
+    def generate_comprehensive_migration_strategy(self):
+        """Generate comprehensive migration strategy for all components"""
+        try:
+            # Gather all infrastructure data
+            servers = self.Server.query.all()
+            databases = self.Database.query.all()
+            file_shares = self.FileShare.query.all()
+            
+            # Generate overall migration approach
+            migration_approach = self._determine_migration_approach(servers, databases, file_shares)
+            
+            # Generate component-specific strategies
+            component_strategies = {
+                'servers': self._generate_server_strategies(servers),
+                'databases': self._generate_database_strategies(databases),
+                'storage': self._generate_storage_strategies(file_shares)
+            }
+            
+            # Generate migration phases
+            migration_phases = self._generate_migration_phases(servers, databases, file_shares)
+            
+            # Risk assessment
+            risk_assessment = self._assess_migration_risks(servers, databases, file_shares)
+            
+            # Generate recommendations
+            recommendations = self._generate_recommendations(servers, databases, file_shares)
+            
+            return {
+                'migration_approach': migration_approach,
+                'component_strategies': component_strategies,
+                'migration_phases': migration_phases,
+                'risk_assessment': risk_assessment,
+                'recommendations': recommendations
+            }
+            
+        except Exception as e:
+            return {
+                'error': f'Failed to generate migration strategy: {str(e)}',
+                'migration_approach': {
+                    'overall_strategy': 'Hybrid Migration',
+                    'rationale': 'Default hybrid approach combining lift-and-shift with selective modernization',
+                    'complexity_level': 'Medium',
+                    'estimated_duration': '12-16 weeks'
+                },
+                'component_strategies': {
+                    'servers': [],
+                    'databases': [],
+                    'storage': []
+                },
+                'migration_phases': [],
+                'risk_assessment': {
+                    'high_risks': ['Migration timeline constraints'],
+                    'medium_risks': ['Application compatibility'],
+                    'low_risks': ['Infrastructure capacity'],
+                    'mitigation_strategies': {}
+                },
+                'recommendations': {
+                    'quick_wins': ['Implement basic monitoring'],
+                    'modernization_opportunities': ['Consider containerization'],
+                    'cost_optimization': ['Use reserved instances'],
+                    'performance_improvements': ['Optimize database queries']
+                }
+            }
+    
+    def _determine_migration_approach(self, servers, databases, file_shares):
+        """Determine overall migration approach"""
+        total_components = len(servers) + len(databases) + len(file_shares)
+        
+        # Simple logic for demonstration - would be enhanced with AI
+        if total_components <= 5:
+            strategy = 'Lift and Shift'
+            complexity = 'Low'
+            duration = '6-8 weeks'
+            rationale = 'Small infrastructure suitable for straightforward lift-and-shift migration'
+        elif total_components <= 15:
+            strategy = 'Hybrid Migration'
+            complexity = 'Medium'
+            duration = '12-16 weeks'
+            rationale = 'Medium-sized infrastructure benefits from hybrid approach with selective modernization'
+        else:
+            strategy = 'Phased Modernization'
+            complexity = 'High'
+            duration = '20-24 weeks'
+            rationale = 'Large infrastructure requires careful phased approach with modernization opportunities'
+        
+        return {
+            'overall_strategy': strategy,
+            'rationale': rationale,
+            'complexity_level': complexity,
+            'estimated_duration': duration
+        }
+    
+    def _generate_server_strategies(self, servers):
+        """Generate migration strategies for servers"""
+        strategies = []
+        
+        for server in servers:
+            # Determine migration type based on technology and age
+            if 'Legacy' in server.technology or 'Windows Server 2008' in server.os_type:
+                migration_type = 'Replatform'
+                target_state = f'Modernized EC2 with updated OS'
+                complexity = 'High'
+                effort = '3-4 weeks'
+                rationale = 'Legacy system requires modernization during migration'
+            elif server.vcpu >= 8 or server.ram >= 32:
+                migration_type = 'Rehost'
+                target_state = f'EC2 {self._recommend_instance_type(server)}'
+                complexity = 'Medium'
+                effort = '1-2 weeks'
+                rationale = 'High-performance server suitable for direct rehosting'
+            else:
+                migration_type = 'Rehost'
+                target_state = f'EC2 {self._recommend_instance_type(server)}'
+                complexity = 'Low'
+                effort = '1 week'
+                rationale = 'Standard server suitable for lift-and-shift'
+            
+            strategies.append({
+                'server_id': server.server_id,
+                'current_state': f'{server.os_type} - {server.vcpu}vCPU, {server.ram}GB RAM',
+                'target_state': target_state,
+                'migration_type': migration_type,
+                'rationale': rationale,
+                'complexity': complexity,
+                'estimated_effort': effort
+            })
+        
+        return strategies
+    
+    def _generate_database_strategies(self, databases):
+        """Generate migration strategies for databases"""
+        strategies = []
+        
+        for db in databases:
+            # Determine migration approach
+            if db.size_gb > 1000 or db.ha_dr_required:
+                migration_type = 'Replatform'
+                target_engine = f'Amazon RDS for {db.db_type} (Multi-AZ)'
+                approach = 'AWS Database Migration Service'
+                data_strategy = 'Online migration with minimal downtime'
+                downtime = '< 1 hour'
+                complexity = 'High'
+            elif db.size_gb > 100:
+                migration_type = 'Rehost'
+                target_engine = f'Amazon RDS for {db.db_type}'
+                approach = 'Native database tools'
+                data_strategy = 'Backup and restore with sync'
+                downtime = '2-4 hours'
+                complexity = 'Medium'
+            else:
+                migration_type = 'Rehost'
+                target_engine = f'Amazon RDS for {db.db_type}'
+                approach = 'Direct migration'
+                data_strategy = 'Export and import'
+                downtime = '1-2 hours'
+                complexity = 'Low'
+            
+            strategies.append({
+                'db_name': db.db_name,
+                'current_engine': db.db_type,
+                'target_engine': target_engine,
+                'migration_type': migration_type,
+                'approach': approach,
+                'data_migration_strategy': data_strategy,
+                'downtime_estimate': downtime,
+                'complexity': complexity
+            })
+        
+        return strategies
+    
+    def _generate_storage_strategies(self, file_shares):
+        """Generate migration strategies for storage"""
+        strategies = []
+        
+        for share in file_shares:
+            # Determine migration method based on size and access pattern
+            if share.total_size_gb > 10000:  # > 10TB
+                method = 'AWS DataSync + Snowball'
+                sync_strategy = 'Initial bulk transfer via Snowball, sync via DataSync'
+                cutover = 'Staged cutover with final sync'
+            elif share.total_size_gb > 1000:  # > 1TB
+                method = 'AWS DataSync'
+                sync_strategy = 'Continuous sync with change tracking'
+                cutover = 'Scheduled cutover window'
+            else:
+                method = 'Direct copy'
+                sync_strategy = 'Single transfer operation'
+                cutover = 'Immediate cutover'
+            
+            # Determine target type
+            if share.access_pattern == 'Hot':
+                target_type = 'Amazon EFS'
+            elif share.access_pattern == 'Warm':
+                target_type = 'Amazon S3 Standard-IA'
+            else:
+                target_type = 'Amazon S3 Glacier'
+            
+            strategies.append({
+                'share_name': share.share_name,
+                'current_type': 'File Share',
+                'target_type': target_type,
+                'migration_method': method,
+                'sync_strategy': sync_strategy,
+                'cutover_approach': cutover
+            })
+        
+        return strategies
+    
+    def _generate_migration_phases(self, servers, databases, file_shares):
+        """Generate migration phases"""
+        phases = [
+            {
+                'phase': 1,
+                'name': 'Assessment & Planning',
+                'duration': '2-3 weeks',
+                'components': ['Complete discovery', 'Dependency mapping', 'Security assessment'],
+                'dependencies': [],
+                'risks': ['Incomplete discovery', 'Hidden dependencies'],
+                'success_criteria': ['100% asset discovery', 'Dependency map complete', 'Migration plan approved']
+            },
+            {
+                'phase': 2,
+                'name': 'Infrastructure Setup',
+                'duration': '2-3 weeks',
+                'components': ['AWS account setup', 'Network configuration', 'Security controls'],
+                'dependencies': ['Phase 1 complete'],
+                'risks': ['Network connectivity issues', 'Security compliance gaps'],
+                'success_criteria': ['AWS infrastructure ready', 'Network connectivity verified', 'Security baseline implemented']
+            },
+            {
+                'phase': 3,
+                'name': 'Pilot Migration',
+                'duration': '3-4 weeks',
+                'components': ['Low-risk servers', 'Test databases', 'Small file shares'],
+                'dependencies': ['Phase 2 complete'],
+                'risks': ['Application compatibility', 'Performance issues'],
+                'success_criteria': ['Pilot systems operational', 'Performance benchmarks met', 'Process validated']
+            },
+            {
+                'phase': 4,
+                'name': 'Production Migration',
+                'duration': '4-6 weeks',
+                'components': ['Critical servers', 'Production databases', 'Large file shares'],
+                'dependencies': ['Phase 3 successful'],
+                'risks': ['Extended downtime', 'Data loss', 'Business impact'],
+                'success_criteria': ['All systems migrated', 'Business continuity maintained', 'Performance targets met']
+            },
+            {
+                'phase': 5,
+                'name': 'Optimization & Closure',
+                'duration': '2-3 weeks',
+                'components': ['Performance tuning', 'Cost optimization', 'Documentation'],
+                'dependencies': ['Phase 4 complete'],
+                'risks': ['Performance degradation', 'Cost overruns'],
+                'success_criteria': ['Performance optimized', 'Costs within budget', 'Knowledge transfer complete']
+            }
+        ]
+        
+        return phases
+    
+    def _assess_migration_risks(self, servers, databases, file_shares):
+        """Assess migration risks"""
+        high_risks = []
+        medium_risks = []
+        low_risks = []
+        
+        # Assess based on complexity
+        total_components = len(servers) + len(databases) + len(file_shares)
+        
+        if total_components > 20:
+            high_risks.append('Large-scale migration complexity')
+        elif total_components > 10:
+            medium_risks.append('Medium-scale coordination challenges')
+        else:
+            low_risks.append('Manageable migration scope')
+        
+        # Database-specific risks
+        large_dbs = [db for db in databases if db.size_gb > 1000]
+        if large_dbs:
+            high_risks.append('Large database migration downtime')
+        
+        ha_dbs = [db for db in databases if db.ha_dr_required]
+        if ha_dbs:
+            medium_risks.append('High availability requirements')
+        
+        # Server-specific risks
+        legacy_servers = [s for s in servers if 'Legacy' in (s.technology or '')]
+        if legacy_servers:
+            high_risks.append('Legacy system compatibility')
+        
+        # Storage-specific risks
+        large_shares = [fs for fs in file_shares if fs.total_size_gb > 10000]
+        if large_shares:
+            medium_risks.append('Large file transfer timeframes')
+        
+        return {
+            'high_risks': high_risks if high_risks else ['None identified'],
+            'medium_risks': medium_risks if medium_risks else ['Standard migration risks'],
+            'low_risks': low_risks if low_risks else ['Minor operational adjustments'],
+            'mitigation_strategies': {
+                'Large database migration': 'Use AWS DMS for online migration',
+                'Legacy system compatibility': 'Thorough testing in non-production',
+                'Large file transfers': 'Use AWS DataSync with bandwidth throttling'
+            }
+        }
+    
+    def _generate_recommendations(self, servers, databases, file_shares):
+        """Generate migration recommendations"""
+        quick_wins = []
+        modernization = []
+        cost_optimization = []
+        performance = []
+        
+        # Quick wins
+        if len(servers) > 0:
+            quick_wins.append('Start with non-critical servers for experience')
+        if len(databases) > 0:
+            quick_wins.append('Migrate test databases first to validate process')
+        
+        # Modernization opportunities
+        legacy_count = len([s for s in servers if 'Legacy' in (s.technology or '')])
+        if legacy_count > 0:
+            modernization.append(f'Modernize {legacy_count} legacy systems during migration')
+        
+        if len(databases) > 2:
+            modernization.append('Consider database consolidation opportunities')
+        
+        # Cost optimization
+        cost_optimization.append('Use Reserved Instances for predictable workloads')
+        cost_optimization.append('Implement auto-scaling for variable workloads')
+        
+        if len(file_shares) > 0:
+            cost_optimization.append('Implement S3 lifecycle policies for archival data')
+        
+        # Performance improvements
+        performance.append('Implement CloudWatch monitoring from day one')
+        performance.append('Use Application Load Balancer for better distribution')
+        
+        if len(databases) > 0:
+            performance.append('Enable Performance Insights for database optimization')
+        
+        return {
+            'quick_wins': quick_wins,
+            'modernization_opportunities': modernization,
+            'cost_optimization': cost_optimization,
+            'performance_improvements': performance
+        }
+    
+    def _recommend_instance_type(self, server):
+        """Simple instance type recommendation"""
+        if server.vcpu <= 2 and server.ram <= 4:
+            return 't3.medium'
+        elif server.vcpu <= 4 and server.ram <= 16:
+            return 't3.xlarge'
+        elif server.vcpu <= 8 and server.ram <= 32:
+            return 't3.2xlarge'
+        else:
+            return 'm5.4xlarge'
+
     def _build_database_context(self, database):
         """Build context for database migration analysis"""
         cloud_pref = CloudPreference.query.first()
@@ -371,8 +741,8 @@ class MigrationAdvisor:
             }
         }
     
-    def _assess_migration_risks(self, component, component_type):
-        """Assess migration risks"""
+    def _assess_component_migration_risks(self, component, component_type):
+        """Assess migration risks for a specific component"""
         risks = []
         
         if component_type == 'database':

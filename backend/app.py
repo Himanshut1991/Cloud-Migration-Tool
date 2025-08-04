@@ -34,7 +34,7 @@ BusinessConstraint = models['BusinessConstraint']
 ResourceRate = models['ResourceRate']
 MigrationPlan = models['MigrationPlan']
 # Import services - these will be updated to work with the models
-# from services.cost_calculator import CostCalculator
+from services.cost_calculator import CostCalculator
 # from services.migration_advisor import MigrationAdvisor
 # from services.timeline_generator import TimelineGenerator
 # from services.export_service import ExportService
@@ -280,14 +280,12 @@ def handle_resource_rates():
         'created_at': r.created_at.isoformat()
     } for r in rates])
 
-@app.route('/api/cost-estimation', methods=['POST'])
+@app.route('/api/cost-estimation', methods=['GET', 'POST'])
 def calculate_costs():
     """Generate comprehensive cost estimation"""
     try:
-        # TODO: Implement after fixing imports
-        # calculator = CostCalculator(db, bedrock_client)
-        # result = calculator.calculate_total_costs()
-        result = {"message": "Cost estimation endpoint - implementation pending"}
+        calculator = CostCalculator(db, models, bedrock_client=None)
+        result = calculator.calculate_total_costs()
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -296,10 +294,11 @@ def calculate_costs():
 def generate_migration_strategy():
     """Generate AI-powered migration strategy"""
     try:
-        data = request.get_json()
-        # TODO: Implement after fixing imports
-        # advisor = MigrationAdvisor(db, bedrock_client)
-        result = {"message": "Migration strategy endpoint - implementation pending"}
+        from services.migration_advisor import MigrationAdvisor
+        
+        data = request.get_json() or {}
+        advisor = MigrationAdvisor(db, models, bedrock_client=None)
+        result = advisor.generate_comprehensive_migration_strategy()
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -351,6 +350,40 @@ def get_dashboard_data():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ai-insights', methods=['GET'])
+def get_ai_insights():
+    """Get AI-powered migration insights"""
+    try:
+        calculator = CostCalculator(db, models, bedrock_client=None)
+        ai_analysis = calculator.get_ai_comprehensive_analysis()
+        return jsonify(ai_analysis)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ai-status', methods=['GET'])
+def get_ai_status():
+    """Get AI service status"""
+    try:
+        from services.ai_recommendations import AIRecommendationService
+        ai_service = AIRecommendationService()
+        
+        status = {
+            'ai_enabled': ai_service.bedrock_client is not None,
+            'region': ai_service.region_name if hasattr(ai_service, 'region_name') else 'unknown',
+            'model_id': ai_service.model_id if hasattr(ai_service, 'model_id') else 'unknown',
+            'fallback_mode': ai_service.bedrock_client is None,
+            'message': 'AI recommendations active' if ai_service.bedrock_client else 'Using rule-based recommendations'
+        }
+        
+        return jsonify(status)
+    except Exception as e:
+        return jsonify({
+            'ai_enabled': False,
+            'fallback_mode': True,
+            'error': str(e),
+            'message': 'AI service unavailable'
+        }), 500
 
 if __name__ == '__main__':
     with app.app_context():

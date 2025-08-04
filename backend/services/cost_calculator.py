@@ -1,12 +1,22 @@
 import json
-from models import Server, Database, FileShare, CloudPreference, ResourceRate
+from .ai_recommendations import AIRecommendationService
 
 class CostCalculator:
-    """Cost calculation service for cloud migration"""
+    """Cost calculation service for cloud migration with AI-powered recommendations"""
     
-    def __init__(self, db, bedrock_client=None):
+    def __init__(self, db, models, bedrock_client=None):
         self.db = db
         self.bedrock_client = bedrock_client
+        
+        # Initialize AI recommendation service
+        self.ai_service = AIRecommendationService()
+        
+        # Model classes
+        self.Server = models['Server']
+        self.Database = models['Database']
+        self.FileShare = models['FileShare']
+        self.CloudPreference = models['CloudPreference']
+        self.ResourceRate = models['ResourceRate']
         
         # AWS Pricing (simplified - would typically use AWS Pricing API)
         self.aws_pricing = {
@@ -44,15 +54,31 @@ class CostCalculator:
         }
     
     def calculate_server_costs(self):
-        """Calculate costs for server migration"""
-        servers = Server.query.all()
+        """Calculate costs for server migration with AI-powered recommendations"""
+        servers = self.Server.query.all()
         total_monthly_cost = 0
         server_recommendations = []
         
         for server in servers:
-            # Recommend appropriate EC2 instance
-            recommended_instance = self._recommend_ec2_instance(server.vcpu, server.ram)
-            instance_cost = self.aws_pricing['ec2'][recommended_instance]['cost_per_hour']
+            # Prepare server specifications for AI analysis
+            server_specs = {
+                'server_id': server.server_id,
+                'os_type': server.os_type,
+                'vcpu': server.vcpu,
+                'ram': server.ram,
+                'disk_size': server.disk_size,
+                'disk_type': server.disk_type,
+                'uptime_pattern': server.uptime_pattern,
+                'current_hosting': server.current_hosting,
+                'technology': server.technology
+            }
+            
+            # Get AI-powered recommendation
+            ai_recommendation = self.ai_service.get_server_recommendation(server_specs)
+            recommended_instance = ai_recommendation.get('recommended_instance', 't3.medium')
+            
+            # Calculate costs using the recommended instance
+            instance_cost = self.aws_pricing['ec2'].get(recommended_instance, {}).get('cost_per_hour', 0.0416)
             
             # Calculate monthly cost (24/7 * 30 days)
             monthly_cost = instance_cost * 24 * 30
@@ -68,7 +94,11 @@ class CostCalculator:
                 'current_specs': f"{server.vcpu} vCPU, {server.ram}GB RAM, {server.disk_size}GB Storage",
                 'recommended_instance': recommended_instance,
                 'monthly_cost': monthly_cost,
-                'annual_cost': monthly_cost * 12
+                'annual_cost': monthly_cost * 12,
+                'ai_reasoning': ai_recommendation.get('reasoning', 'Standard sizing recommendation'),
+                'cost_optimization_tips': ai_recommendation.get('cost_optimization_tips', []),
+                'alternative_options': ai_recommendation.get('alternative_options', []),
+                'confidence_level': ai_recommendation.get('confidence_level', 'medium')
             })
         
         return {
@@ -78,15 +108,28 @@ class CostCalculator:
         }
     
     def calculate_database_costs(self):
-        """Calculate costs for database migration"""
-        databases = Database.query.all()
+        """Calculate costs for database migration with AI-powered recommendations"""
+        databases = self.Database.query.all()
         total_monthly_cost = 0
         db_recommendations = []
         
         for database in databases:
-            # Recommend appropriate RDS instance based on size and requirements
-            recommended_instance = self._recommend_rds_instance(database.size_gb, database.ha_dr_required)
-            instance_cost = self.aws_pricing['rds'][recommended_instance]
+            # Prepare database specifications for AI analysis
+            db_specs = {
+                'db_name': database.db_name,
+                'db_type': database.db_type,
+                'size_gb': database.size_gb,
+                'ha_dr_required': database.ha_dr_required,
+                'backup_frequency': database.backup_frequency,
+                'performance_tier': getattr(database, 'performance_tier', 'Standard')
+            }
+            
+            # Get AI-powered recommendation
+            ai_recommendation = self.ai_service.get_database_recommendation(db_specs)
+            recommended_instance = ai_recommendation.get('recommended_instance', 'db.t3.small')
+            
+            # Calculate costs using the recommended instance
+            instance_cost = self.aws_pricing['rds'].get(recommended_instance, 0.034)
             
             # Calculate monthly cost
             monthly_cost = instance_cost * 24 * 30
@@ -108,7 +151,12 @@ class CostCalculator:
                 'size_gb': database.size_gb,
                 'recommended_instance': recommended_instance,
                 'monthly_cost': monthly_cost,
-                'annual_cost': monthly_cost * 12
+                'annual_cost': monthly_cost * 12,
+                'ai_reasoning': ai_recommendation.get('reasoning', 'Standard sizing recommendation'),
+                'engine_recommendation': ai_recommendation.get('engine_recommendation', database.db_type),
+                'performance_insights': ai_recommendation.get('performance_insights', 'Standard performance configuration'),
+                'migration_complexity': ai_recommendation.get('migration_complexity', 'medium'),
+                'confidence_level': ai_recommendation.get('confidence_level', 'medium')
             })
         
         return {
@@ -118,20 +166,34 @@ class CostCalculator:
         }
     
     def calculate_storage_costs(self):
-        """Calculate costs for file share migration to S3/EFS"""
-        file_shares = FileShare.query.all()
+        """Calculate costs for file share migration with AI-powered recommendations"""
+        file_shares = self.FileShare.query.all()
         total_monthly_cost = 0
         storage_recommendations = []
         
         for file_share in file_shares:
-            # Recommend storage class based on access pattern
-            if file_share.access_pattern == 'Hot':
+            # Prepare storage specifications for AI analysis
+            storage_specs = {
+                'share_name': file_share.share_name,
+                'total_size_gb': file_share.total_size_gb,
+                'file_count': getattr(file_share, 'file_count', 0),
+                'access_pattern': file_share.access_pattern,
+                'file_types': getattr(file_share, 'file_types', 'Mixed'),
+                'access_frequency': getattr(file_share, 'access_frequency', 'Regular')
+            }
+            
+            # Get AI-powered recommendation
+            ai_recommendation = self.ai_service.get_storage_recommendation(storage_specs)
+            recommended_storage = ai_recommendation.get('recommended_storage', 'S3 Standard')
+            
+            # Map AI recommendation to pricing
+            if 'S3 Standard' in recommended_storage or file_share.access_pattern == 'Hot':
                 storage_class = 'standard'
                 cost_per_gb = self.aws_pricing['s3']['standard']
-            elif file_share.access_pattern == 'Warm':
+            elif 'S3 IA' in recommended_storage or file_share.access_pattern == 'Warm':
                 storage_class = 'ia'
                 cost_per_gb = self.aws_pricing['s3']['ia']
-            else:  # Cold
+            else:  # Glacier or Cold
                 storage_class = 'glacier'
                 cost_per_gb = self.aws_pricing['s3']['glacier']
             
@@ -142,9 +204,14 @@ class CostCalculator:
                 'share_name': file_share.share_name,
                 'size_gb': file_share.total_size_gb,
                 'access_pattern': file_share.access_pattern,
-                'recommended_storage': f"S3 {storage_class}",
+                'recommended_storage': recommended_storage,
                 'monthly_cost': monthly_cost,
-                'annual_cost': monthly_cost * 12
+                'annual_cost': monthly_cost * 12,
+                'ai_reasoning': ai_recommendation.get('reasoning', 'Standard storage recommendation'),
+                'lifecycle_policy': ai_recommendation.get('lifecycle_policy', 'Standard lifecycle'),
+                'cost_optimization_tips': ai_recommendation.get('cost_optimization_tips', []),
+                'performance_considerations': ai_recommendation.get('performance_considerations', 'Standard performance'),
+                'confidence_level': ai_recommendation.get('confidence_level', 'medium')
             })
         
         return {
@@ -155,7 +222,7 @@ class CostCalculator:
     
     def calculate_migration_service_costs(self):
         """Calculate professional services costs"""
-        resource_rates = ResourceRate.query.all()
+        resource_rates = self.ResourceRate.query.all()
         total_cost = 0
         resource_breakdown = []
         
@@ -178,11 +245,12 @@ class CostCalculator:
         }
     
     def calculate_total_costs(self):
-        """Calculate comprehensive migration costs"""
+        """Calculate comprehensive migration costs with AI insights"""
         server_costs = self.calculate_server_costs()
         database_costs = self.calculate_database_costs()
         storage_costs = self.calculate_storage_costs()
         service_costs = self.calculate_migration_service_costs()
+        ai_analysis = self.get_ai_comprehensive_analysis()
         
         # Calculate total cloud infrastructure costs
         total_cloud_monthly = (
@@ -204,7 +272,8 @@ class CostCalculator:
                 'one_time_migration_cost': service_costs['total_professional_services_cost'],
                 'annual_cloud_cost': total_cloud_monthly * 12,
                 'total_first_year_cost': service_costs['total_professional_services_cost'] + (total_cloud_monthly * 12)
-            }
+            },
+            'ai_insights': ai_analysis
         }
     
     def _recommend_ec2_instance(self, vcpu, ram):
@@ -239,3 +308,59 @@ class CostCalculator:
             return 'db.t3.large'
         else:
             return 'db.m5.large' if not ha_required else 'db.m5.xlarge'
+    
+    def get_ai_comprehensive_analysis(self):
+        """Get AI-powered comprehensive migration analysis"""
+        try:
+            # Gather infrastructure summary
+            servers = self.Server.query.all()
+            databases = self.Database.query.all()
+            file_shares = self.FileShare.query.all()
+            
+            infrastructure_summary = {
+                'servers': [
+                    {
+                        'server_id': s.server_id,
+                        'os_type': s.os_type,
+                        'vcpu': s.vcpu,
+                        'ram': s.ram,
+                        'disk_size': s.disk_size,
+                        'technology': s.technology,
+                        'uptime_pattern': s.uptime_pattern
+                    } for s in servers
+                ],
+                'databases': [
+                    {
+                        'db_name': d.db_name,
+                        'db_type': d.db_type,
+                        'size_gb': d.size_gb,
+                        'ha_dr_required': d.ha_dr_required,
+                        'backup_frequency': d.backup_frequency
+                    } for d in databases
+                ],
+                'storage': [
+                    {
+                        'share_name': f.share_name,
+                        'total_size_gb': f.total_size_gb,
+                        'access_pattern': f.access_pattern
+                    } for f in file_shares
+                ],
+                'totals': {
+                    'server_count': len(servers),
+                    'database_count': len(databases),
+                    'storage_count': len(file_shares),
+                    'total_servers_vcpu': sum(s.vcpu for s in servers),
+                    'total_servers_ram': sum(s.ram for s in servers),
+                    'total_storage_gb': sum(f.total_size_gb for f in file_shares)
+                }
+            }
+            
+            # Get AI comprehensive analysis
+            analysis = self.ai_service.get_comprehensive_analysis(infrastructure_summary)
+            return analysis
+            
+        except Exception as e:
+            return {
+                'error': f'AI analysis failed: {str(e)}',
+                'analysis': 'Comprehensive AI analysis is currently unavailable'
+            }
