@@ -39,7 +39,7 @@ const DatabaseInventory: React.FC = () => {
   const [editingDatabase, setEditingDatabase] = useState<Database | null>(null);
   const [form] = Form.useForm();
 
-  const API_BASE_URL = 'http://127.0.0.1:5000/api';
+  const API_BASE_URL = 'http://localhost:5000/api';
 
   // Fetch databases
   const fetchDatabases = async () => {
@@ -357,7 +357,7 @@ const DatabaseInventory: React.FC = () => {
                 <Select placeholder="Select server">
                   {servers.map(server => (
                     <Option key={server.server_id} value={server.server_id}>
-                      {server.server_id} ({server.os_type})
+                      {server.server_id}
                     </Option>
                   ))}
                 </Select>

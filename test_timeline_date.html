@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeline Date Picker Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+        input[type="date"] {
+            padding: 8px;
+            margin: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 20px;
+            background: #1890ff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #40a9ff;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Timeline Date Picker Functionality Test</h1>
+    
+    <div class="test-section">
+        <h2>Date Calculation Test</h2>
+        <p>This tests the core functionality of calculating end dates based on start dates and duration.</p>
+        
+        <label for="startDate">Start Date:</label>
+        <input type="date" id="startDate" value="2024-03-01">
+        
+        <label for="duration">Duration (weeks):</label>
+        <input type="number" id="duration" value="16" min="1" max="52">
+        
+        <button onclick="calculateEndDate()">Calculate End Date</button>
+        
+        <div id="dateResult" class="result" style="display: none;">
+            <h3>Result:</h3>
+            <p><strong>Start Date:</strong> <span id="resultStart"></span></p>
+            <p><strong>End Date:</strong> <span id="resultEnd"></span></p>
+            <p><strong>Duration:</strong> <span id="resultDuration"></span> weeks</p>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>API Test</h2>
+        <p>This tests the timeline API with custom start date.</p>
+        
+        <input type="date" id="apiStartDate" value="2024-03-01">
+        <button onclick="testTimelineAPI()">Test Timeline API</button>
+        
+        <div id="apiResult" class="result" style="display: none;">
+            <h3>API Response:</h3>
+            <pre id="apiResponse"></pre>
+        </div>
+    </div>
+
+    <script>
+        function calculateEndDate() {
+            const startDate = document.getElementById('startDate').value;
+            const duration = parseInt(document.getElementById('duration').value);
+            
+            if (!startDate || !duration) {
+                alert('Please enter both start date and duration');
+                return;
+            }
+            
+            // Calculate end date
+            const start = new Date(startDate);
+            const end = new Date(start);
+            end.setDate(start.getDate() + (duration * 7)); // Add weeks as days
+            
+            // Display results
+            document.getElementById('resultStart').textContent = startDate;
+            document.getElementById('resultEnd').textContent = end.toISOString().split('T')[0];
+            document.getElementById('resultDuration').textContent = duration;
+            document.getElementById('dateResult').style.display = 'block';
+        }
+        
+        async function testTimelineAPI() {
+            const startDate = document.getElementById('apiStartDate').value;
+            const resultDiv = document.getElementById('apiResult');
+            const responseDiv = document.getElementById('apiResponse');
+            
+            if (!startDate) {
+                alert('Please enter a start date');
+                return;
+            }
+            
+            try {
+                responseDiv.textContent = 'Loading...';
+                resultDiv.style.display = 'block';
+                
+                const response = await fetch('http://localhost:5000/api/timeline', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        start_date: startDate
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                responseDiv.textContent = JSON.stringify(data, null, 2);
+                
+            } catch (error) {
+                responseDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        // Auto-calculate on page load
+        window.onload = function() {
+            calculateEndDate();
+        };
+    </script>
+</body>
+</html>

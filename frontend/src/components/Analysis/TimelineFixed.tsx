@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import dayjs, { Dayjs } from 'dayjs';
 import {
   Card,
   Typography,
@@ -16,9 +15,7 @@ import {
   Descriptions,
   Table,
   Space,
-  Divider,
-  DatePicker,
-  message
+  Divider
 } from 'antd';
 import {
   ClockCircleOutlined,
@@ -83,10 +80,8 @@ interface TimelineData {
 
 const Timeline: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<TimelineData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isRealData, setIsRealData] = useState(false);
-  const [customStartDate, setCustomStartDate] = useState<Dayjs | null>(null);
-  const [calculatedEndDate, setCalculatedEndDate] = useState<string | null>(null);
 
   // Mock data for development/fallback
   const mockTimelineData: TimelineData = {
@@ -215,107 +210,34 @@ const Timeline: React.FC = () => {
     }
   };
 
-  // Initialize with mock data
-  const [data, setData] = useState<TimelineData>(mockTimelineData);
-
-  // Function to calculate end date based on start date and duration
-  const calculateEndDate = (startDate: Dayjs, durationWeeks: number): string => {
-    return startDate.add(durationWeeks, 'week').format('YYYY-MM-DD');
-  };
-
-  // Function to update timeline data with custom start date
-  const updateTimelineWithCustomDate = (baseData: TimelineData, newStartDate: Dayjs): TimelineData => {
-    const newEndDate = calculateEndDate(newStartDate, baseData.project_overview.total_duration_weeks);
-    
-    return {
-      ...baseData,
-      project_overview: {
-        ...baseData.project_overview,
-        estimated_start_date: newStartDate.format('YYYY-MM-DD'),
-        estimated_end_date: newEndDate
-      }
-    };
-  };
-
-  // Handle start date change
-  const handleStartDateChange = (date: Dayjs | null) => {
-    setCustomStartDate(date);
-    
-    if (date) {
-      const newEndDate = calculateEndDate(date, data.project_overview.total_duration_weeks);
-      setCalculatedEndDate(newEndDate);
-      
-      // Update the timeline data with new dates
-      const updatedData = updateTimelineWithCustomDate(data, date);
-      setData(updatedData);
-      
-      message.success(`Timeline updated: Start date set to ${date.format('YYYY-MM-DD')}, End date: ${newEndDate}`);
-    } else {
-      setCalculatedEndDate(null);
-    }
-  };
-
   const fetchTimeline = async () => {
     setLoading(true);
     setError(null);
     try {
-      // Add timeout to prevent hanging
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-      
-      // Include custom start date if provided
-      const requestBody = customStartDate ? {
-        start_date: customStartDate.format('YYYY-MM-DD')
-      } : {};
-      
       const response = await fetch('http://localhost:5000/api/timeline', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal
+        body: JSON.stringify({})
       });
-      
-      clearTimeout(timeoutId);
-      
       if (!response.ok) {
         throw new Error('Failed to fetch timeline data');
       }
-      let timelineData = await response.json();
-      
-      // If we have a custom start date, update the received data
-      if (customStartDate) {
-        timelineData = updateTimelineWithCustomDate(timelineData, customStartDate);
-      }
-      
+      const timelineData = await response.json();
       setData(timelineData);
-      setError(null); // Clear error if API succeeds
-      setIsRealData(true); // Mark as real data
     } catch (err) {
       console.warn('API not available, using mock data:', err);
       setError('Backend not available - showing sample data');
-      let fallbackData = mockTimelineData;
-      
-      // Apply custom start date to mock data if provided
-      if (customStartDate) {
-        fallbackData = updateTimelineWithCustomDate(mockTimelineData, customStartDate);
-      }
-      
-      setData(fallbackData); // Always fall back to mock data
-      setIsRealData(false); // Mark as mock data
+      setData(mockTimelineData);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    console.log('Timeline component mounted - showing mock data by default');
-    // Don't auto-fetch to prevent blank page, let user click refresh for real data
+    fetchTimeline();
   }, []);
-
-  // Debug logging
-  console.log('Timeline render - loading:', loading, 'error:', error, 'data available:', !!data);
 
   const getPhaseColor = (status: string) => {
     switch (status) {
@@ -335,17 +257,16 @@ const Timeline: React.FC = () => {
     }
   };
 
-  // Remove loading state that hides content - show data with loading button instead
-  // if (loading) {
-  //   return (
-  //     <div style={{ textAlign: 'center', padding: '50px' }}>
-  //       <Spin size="large" />
-  //       <div style={{ marginTop: 16 }}>
-  //         <Text>Generating migration timeline...</Text>
-  //       </div>
-  //     </div>
-  //   );
-  // }
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '50px' }}>
+        <Spin size="large" />
+        <div style={{ marginTop: 16 }}>
+          <Text>Generating migration timeline...</Text>
+        </div>
+      </div>
+    );
+  }
 
   if (error && !data) {
     return (
@@ -365,8 +286,20 @@ const Timeline: React.FC = () => {
   }
 
   if (!data) {
-    // This should never happen since we initialize with mock data
-    return <div>No data available</div>;
+    return (
+      <Card>
+        <div style={{ textAlign: 'center', padding: '40px' }}>
+          <CalendarOutlined style={{ fontSize: '48px', color: '#d9d9d9' }} />
+          <Title level={3} type="secondary">No Timeline Data</Title>
+          <Paragraph>
+            Generate your migration timeline by first running cost estimation.
+          </Paragraph>
+          <Button type="primary" onClick={fetchTimeline}>
+            <ReloadOutlined /> Generate Timeline
+          </Button>
+        </div>
+      </Card>
+    );
   }
 
   const tabItems = [
@@ -417,44 +350,17 @@ const Timeline: React.FC = () => {
           </Col>
           <Col span={24}>
             <Card title="Project Timeline">
-              <Row gutter={[16, 16]}>
-                <Col xs={24} sm={12}>
-                  <div style={{ marginBottom: 16 }}>
-                    <label style={{ display: 'block', marginBottom: 8, fontWeight: 'bold' }}>
-                      Project Start Date:
-                    </label>
-                    <DatePicker
-                      value={customStartDate}
-                      onChange={handleStartDateChange}
-                      placeholder="Select start date"
-                      style={{ width: '100%' }}
-                      format="YYYY-MM-DD"
-                    />
-                    {!customStartDate && (
-                      <div style={{ marginTop: 4, fontSize: '12px', color: '#666' }}>
-                        Using default date: {data.project_overview.estimated_start_date}
-                      </div>
-                    )}
-                  </div>
-                </Col>
-                <Col xs={24} sm={12}>
-                  <Descriptions bordered size="small">
-                    <Descriptions.Item label="Start Date" span={3}>
-                      <Text strong>
-                        {customStartDate ? customStartDate.format('YYYY-MM-DD') : data.project_overview.estimated_start_date}
-                      </Text>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="End Date" span={3}>
-                      <Text strong style={{ color: '#52c41a' }}>
-                        {calculatedEndDate || data.project_overview.estimated_end_date}
-                      </Text>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Total Phases" span={3}>
-                      {data.phases.length}
-                    </Descriptions.Item>
-                  </Descriptions>
-                </Col>
-              </Row>
+              <Descriptions bordered>
+                <Descriptions.Item label="Start Date">
+                  {data.project_overview.estimated_start_date}
+                </Descriptions.Item>
+                <Descriptions.Item label="End Date">
+                  {data.project_overview.estimated_end_date}
+                </Descriptions.Item>
+                <Descriptions.Item label="Total Phases">
+                  {data.phases.length}
+                </Descriptions.Item>
+              </Descriptions>
             </Card>
           </Col>
         </Row>
@@ -665,42 +571,12 @@ const Timeline: React.FC = () => {
   return (
     <div style={{ padding: '24px' }}>
       <div style={{ marginBottom: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <Title level={2}>
-              <ProjectOutlined /> Migration Timeline
-            </Title>
-            <Paragraph>
-              Timeline generated from your inventory and configuration settings.
-            </Paragraph>
-          </div>
-          <Button 
-            type="primary" 
-            icon={<ReloadOutlined />} 
-            onClick={fetchTimeline}
-            loading={loading}
-          >
-            Regenerate Timeline
-          </Button>
-        </div>
-        {!isRealData && (
-          <Alert
-            message="Sample Timeline Data"
-            description="This timeline is generated from sample data. Click 'Regenerate Timeline' to create a timeline based on your actual inventory and configuration."
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-        )}
-        {isRealData && (
-          <Alert
-            message="Dynamic Timeline Generated"
-            description="This timeline is generated from your actual inventory, configuration, and business constraints."
-            type="success"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-        )}
+        <Title level={2}>
+          <ProjectOutlined /> Migration Timeline
+        </Title>
+        <Paragraph>
+          Comprehensive migration timeline with phases, dependencies, and resource allocation.
+        </Paragraph>
         {error && (
           <Alert
             message="Using Sample Data"
@@ -713,31 +589,7 @@ const Timeline: React.FC = () => {
         )}
       </div>
 
-      <div style={{ position: 'relative' }}>
-        {loading && (
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(255, 255, 255, 0.8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            minHeight: '300px'
-          }}>
-            <div style={{ textAlign: 'center' }}>
-              <Spin size="large" />
-              <div style={{ marginTop: 16 }}>
-                <Text>Regenerating timeline from your inventory...</Text>
-              </div>
-            </div>
-          </div>
-        )}
-        <Tabs defaultActiveKey="overview" items={tabItems} />
-      </div>
+      <Tabs defaultActiveKey="overview" items={tabItems} />
     </div>
   );
 };

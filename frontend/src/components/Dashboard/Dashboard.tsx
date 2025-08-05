@@ -31,14 +31,25 @@ const Dashboard: React.FC = () => {
   }, []);
 
   const fetchDashboardData = async () => {
+    console.log('🔄 Dashboard: Starting to fetch data...');
     try {
-      const response = await fetch('http://127.0.0.1:5000/api/dashboard');
+      console.log('🌐 Dashboard: Making request to http://localhost:5000/api/dashboard');
+      const response = await fetch('http://localhost:5000/api/dashboard');
+      console.log(`📡 Dashboard: Response status: ${response.status}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
+      console.log('✅ Dashboard: Data received:', data);
       setDashboardData(data);
+      
     } catch (error) {
-      console.error('Failed to fetch dashboard data:', error);
+      console.error('❌ Dashboard: Failed to fetch data:', error);
     } finally {
       setLoading(false);
+      console.log('🏁 Dashboard: Fetch completed, loading set to false');
     }
   };
 

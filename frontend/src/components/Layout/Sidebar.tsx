@@ -117,6 +117,15 @@ const Sidebar: React.FC = () => {
       onCollapse={(value) => setCollapsed(value)}
       theme="dark"
       width={260}
+      collapsedWidth={80}
+      style={{
+        overflow: 'auto',
+        height: '100vh',
+        position: 'fixed',
+        left: 0,
+        top: 0,
+        bottom: 0,
+      }}
     >
       <div style={{ 
         height: 32, 

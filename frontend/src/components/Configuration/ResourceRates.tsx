@@ -27,7 +27,7 @@ const ResourceRates: React.FC = () => {
   const [form] = Form.useForm();
   const [previewCost, setPreviewCost] = useState<number>(0);
 
-  const API_BASE_URL = 'http://127.0.0.1:5000/api';
+  const API_BASE_URL = 'http://localhost:5000/api';
 
   // Predefined roles with typical rates
   const predefinedRoles = [

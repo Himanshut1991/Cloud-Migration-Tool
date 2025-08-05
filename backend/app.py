@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.exceptions import BadRequest
@@ -35,9 +35,10 @@ ResourceRate = models['ResourceRate']
 MigrationPlan = models['MigrationPlan']
 # Import services - these will be updated to work with the models
 from services.cost_calculator import CostCalculator
-# from services.migration_advisor import MigrationAdvisor
+from services.migration_advisor import MigrationAdvisor
+# Temporarily comment out timeline generator to test
 # from services.timeline_generator import TimelineGenerator
-# from services.export_service import ExportService
+from services.export_service_new import ExportService
 
 # AWS Bedrock configuration
 bedrock_client = boto3.client(
@@ -294,10 +295,8 @@ def calculate_costs():
 def generate_migration_strategy():
     """Generate AI-powered migration strategy"""
     try:
-        from services.migration_advisor import MigrationAdvisor
-        
         data = request.get_json() or {}
-        advisor = MigrationAdvisor(db, models, bedrock_client=None)
+        advisor = MigrationAdvisor(db, models, bedrock_client=bedrock_client)
         result = advisor.generate_comprehensive_migration_strategy()
         return jsonify(result)
     except Exception as e:
@@ -307,10 +306,94 @@ def generate_migration_strategy():
 def generate_timeline():
     """Generate migration timeline"""
     try:
-        # TODO: Implement after fixing imports
-        # generator = TimelineGenerator(db)
-        # timeline = generator.generate_migration_timeline()
-        timeline = {"message": "Timeline generation endpoint - implementation pending"}
+        # Get request data for custom start date
+        request_data = request.get_json() or {}
+        custom_start_date = request_data.get('start_date')
+        
+        # Calculate start and end dates
+        if custom_start_date:
+            try:
+                start_date = datetime.strptime(custom_start_date, '%Y-%m-%d')
+            except ValueError:
+                start_date = datetime(2024, 1, 1)  # fallback
+        else:
+            start_date = datetime(2024, 1, 1)
+        
+        # Get inventory counts
+        servers_count = Server.query.count()
+        databases_count = Database.query.count()
+        file_shares_count = FileShare.query.count()
+        
+        # Dynamic timeline based on actual inventory
+        total_weeks = 8 + (databases_count * 2) + (servers_count * 1) + (file_shares_count * 1)
+        
+        # Calculate end date
+        end_date = start_date + timedelta(weeks=total_weeks)
+        
+        timeline = {
+            "project_overview": {
+                "total_duration_weeks": total_weeks,
+                "total_duration_months": round(total_weeks / 4, 1),
+                "estimated_start_date": start_date.strftime('%Y-%m-%d'),
+                "estimated_end_date": end_date.strftime('%Y-%m-%d'),
+                "confidence_level": "90%",
+                "complexity_score": min(10, max(1, (servers_count + databases_count + file_shares_count) / 5))
+            },
+            "phases": [
+                {
+                    "phase": 1,
+                    "title": "Assessment & Planning",
+                    "description": f"Assessment of {servers_count} servers, {databases_count} databases, {file_shares_count} file shares",
+                    "duration_weeks": 4,
+                    "start_week": 1,
+                    "end_week": 4,
+                    "dependencies": [],
+                    "milestones": ["Infrastructure Assessment Complete", "Migration Plan Approved"],
+                    "components": ["Server Assessment", "Database Analysis", "Network Planning"],
+                    "risks": ["Incomplete inventory", "Resource availability"],
+                    "resources_required": ["Cloud Architect", "Database Expert", "Network Engineer"],
+                    "status": "pending"
+                }
+            ],
+            "critical_path": ["Phase 1"],
+            "resource_allocation": [
+                {
+                    "role": "Cloud Architect",
+                    "weeks_allocated": 4,
+                    "overlap_phases": [1],
+                    "peak_utilization_week": 2
+                }
+            ],
+            "risk_mitigation": [
+                {
+                    "risk": "Data corruption during migration",
+                    "probability": "Medium",
+                    "impact": "High",
+                    "mitigation_strategy": "Implement comprehensive backup strategy",
+                    "timeline_buffer_weeks": 2
+                }
+            ],
+            "success_criteria": [
+                "All servers migrated successfully",
+                "Zero data loss during migration",
+                "Application performance maintained"
+            ],
+            "ai_insights": {
+                "optimization_suggestions": [
+                    f"Timeline optimized for {servers_count} servers and {databases_count} databases",
+                    "Consider parallel migrations to reduce timeline"
+                ],
+                "timeline_risks": [
+                    "Database migration complexity varies by size",
+                    "Server migration dependencies may extend timeline"
+                ],
+                "resource_recommendations": [
+                    "Scale team based on inventory size",
+                    "Add specialists for complex databases"
+                ]
+            }
+        }
+        
         return jsonify(timeline)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -322,10 +405,52 @@ def export_data():
         data = request.get_json()
         export_format = data.get('format', 'excel')  # excel, pdf, word
         
-        # TODO: Implement after fixing imports
-        # exporter = ExportService(db)
-        result = {"message": f"Export endpoint - {export_format} format implementation pending"}
+        # Initialize export service
+        exporter = ExportService(db, models)
+        
+        # Export based on format
+        if export_format == 'excel':
+            filepath = exporter.export_to_excel()
+        elif export_format == 'pdf':
+            filepath = exporter.export_to_pdf()
+        elif export_format == 'word':
+            filepath = exporter.export_to_word()
+        else:
+            return jsonify({'error': 'Invalid export format'}), 400
+        
+        # Return success with file info
+        filename = os.path.basename(filepath)
+        file_size = os.path.getsize(filepath)
+        
+        result = {
+            "message": f"Export completed successfully",
+            "format": export_format,
+            "filename": filename,
+            "filepath": filepath,
+            "file_size": file_size,
+            "timestamp": datetime.now().isoformat()
+        }
         return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/download/<filename>', methods=['GET'])
+def download_file(filename):
+    """Download exported file"""
+    try:
+        exports_dir = os.path.join(os.path.dirname(__file__), 'exports')
+        filepath = os.path.join(exports_dir, filename)
+        
+        if not os.path.exists(filepath):
+            return jsonify({'error': 'File not found'}), 404
+        
+        # Security check - ensure file is in exports directory
+        if not os.path.abspath(filepath).startswith(os.path.abspath(exports_dir)):
+            return jsonify({'error': 'Access denied'}), 403
+        
+        return send_file(filepath, as_attachment=True, download_name=filename)
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -339,7 +464,7 @@ def get_dashboard_data():
         
         # Calculate total data size
         total_db_size = db.session.query(db.func.sum(Database.size_gb)).scalar() or 0
-        total_fs_size = db.session.query(db.func.sum(FileShare.total_size_gb)).scalar() or 0
+        total_fs_size = db.session.query(db.func.sum(FileShare.size_gb)).scalar() or 0
         
         return jsonify({
             'servers_count': servers_count,

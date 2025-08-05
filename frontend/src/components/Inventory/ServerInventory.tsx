@@ -46,22 +46,29 @@ const ServerInventory: React.FC = () => {
   }, []);
 
   const fetchServers = async () => {
+    console.log('🔄 ServerInventory: Starting to fetch servers...');
     try {
-      const response = await fetch('http://127.0.0.1:5000/api/servers');
+      console.log('🌐 ServerInventory: Making request to http://localhost:5000/api/servers');
+      const response = await fetch('http://localhost:5000/api/servers');
+      console.log(`📡 ServerInventory: Response status: ${response.status}`);
+      
       const data = await response.json();
+      console.log('✅ ServerInventory: Data received:', data);
       setServers(data);
     } catch (error) {
+      console.error('❌ ServerInventory: Error:', error);
       message.error('Failed to fetch servers');
     } finally {
       setLoading(false);
+      console.log('🏁 ServerInventory: Fetch completed');
     }
   };
 
   const handleSubmit = async (values: any) => {
     try {
       const url = editingServer 
-        ? `http://127.0.0.1:5000/api/servers/${editingServer.id}`
-        : 'http://127.0.0.1:5000/api/servers';
+        ? `http://localhost:5000/api/servers/${editingServer.id}`
+        : 'http://localhost:5000/api/servers';
       
       const method = editingServer ? 'PUT' : 'POST';
       
@@ -95,7 +102,7 @@ const ServerInventory: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     try {
-      const response = await fetch(`http://127.0.0.1:5000/api/servers/${id}`, {
+      const response = await fetch(`http://localhost:5000/api/servers/${id}`, {
         method: 'DELETE',
       });
 

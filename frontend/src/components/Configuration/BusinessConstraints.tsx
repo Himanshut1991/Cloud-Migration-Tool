@@ -26,7 +26,7 @@ const BusinessConstraints: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [businessConstraint, setBusinessConstraint] = useState<BusinessConstraint | null>(null);
 
-  const API_BASE_URL = 'http://127.0.0.1:5000/api';
+  const API_BASE_URL = 'http://localhost:5000/api';
 
   // Migration window options
   const migrationWindows = [

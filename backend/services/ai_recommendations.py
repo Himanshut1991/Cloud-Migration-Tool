@@ -279,6 +279,67 @@ class AIRecommendationService:
             self.logger.error(f"AI comprehensive analysis failed: {e}")
             return {"analysis": "AI analysis failed", "recommendations": []}
     
+    def get_cost_optimization_recommendations(self, inventory_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Get AI-powered cost optimization recommendations"""
+        if not self.bedrock_client:
+            return self._fallback_cost_optimization(inventory_data)
+        
+        servers_count = len(inventory_data.get('servers', []))
+        databases_count = len(inventory_data.get('databases', []))
+        file_shares_count = len(inventory_data.get('file_shares', []))
+        
+        prompt = f"""
+        You are a senior cloud cost optimization specialist. Analyze the following infrastructure inventory and provide specific cost optimization recommendations for AWS cloud migration.
+
+        Infrastructure Inventory:
+        - Servers: {servers_count} servers
+        - Databases: {databases_count} databases  
+        - File Shares: {file_shares_count} file shares
+        
+        Detailed inventory:
+        {json.dumps(inventory_data, indent=2)}
+
+        Provide specific, actionable cost optimization recommendations. Focus on:
+        1. EC2 instance right-sizing and reserved instance opportunities
+        2. Database optimization and managed service benefits
+        3. Storage optimization and lifecycle policies
+        4. Auto-scaling and resource scheduling
+        5. Cost monitoring and governance
+
+        Provide your response in the following JSON format:
+        {{
+            "confidence_level": 90,
+            "recommendations": [
+                "Specific recommendation 1 with expected savings",
+                "Specific recommendation 2 with expected savings",
+                "Specific recommendation 3 with expected savings"
+            ],
+            "cost_optimization_tips": [
+                "Quick tip 1 with percentage savings",
+                "Quick tip 2 with percentage savings",
+                "Quick tip 3 with percentage savings"
+            ],
+            "expected_savings": {{
+                "monthly_percentage": 25,
+                "annual_amount": 50000
+            }}
+        }}
+        """
+        
+        try:
+            response = self._call_bedrock(prompt)
+            result = self._parse_ai_response(response, 'cost_optimization')
+            
+            # Ensure we have the required fields
+            if not result.get('recommendations'):
+                return self._fallback_cost_optimization(inventory_data)
+                
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"AI cost optimization failed: {e}")
+            return self._fallback_cost_optimization(inventory_data)
+    
     def _call_bedrock(self, prompt: str) -> str:
         """Call AWS Bedrock with the given prompt"""
         try:
@@ -452,4 +513,32 @@ class AIRecommendationService:
             "recommended_storage": storage,
             "reasoning": f"Basic recommendation based on {access_pattern} access pattern",
             "confidence_level": "medium"
+        }
+    
+    def _fallback_cost_optimization(self, inventory_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Fallback cost optimization recommendations"""
+        servers_count = len(inventory_data.get('servers', []))
+        databases_count = len(inventory_data.get('databases', []))
+        file_shares_count = len(inventory_data.get('file_shares', []))
+        
+        return {
+            "confidence_level": 85,
+            "recommendations": [
+                f"Consider reserved instances for {servers_count} servers - save 20-72% vs on-demand pricing",
+                f"Evaluate managed database services for {databases_count} databases to reduce operational costs",
+                f"Implement S3 intelligent tiering for {file_shares_count} file shares to optimize storage costs",
+                "Use auto-scaling groups to match compute capacity with actual demand",
+                "Implement resource tagging and cost allocation for better cost visibility"
+            ],
+            "cost_optimization_tips": [
+                "Reserved instances offer 20-72% savings over on-demand pricing",
+                "S3 Intelligent Tiering can reduce storage costs by 30-68%",
+                "Auto-scaling can reduce compute costs by 10-50% during low usage periods",
+                "Spot instances can provide up to 90% savings for fault-tolerant workloads",
+                "Right-sizing instances can reduce costs by 10-30% on average"
+            ],
+            "expected_savings": {
+                "monthly_percentage": 25,
+                "annual_amount": max(10000, (servers_count + databases_count) * 2000)
+            }
         }

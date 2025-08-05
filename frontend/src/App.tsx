@@ -14,9 +14,9 @@ import FileShareInventory from './components/Inventory/FileShareInventory';
 import CloudPreferences from './components/Configuration/CloudPreferences';
 import BusinessConstraints from './components/Configuration/BusinessConstraints';
 import ResourceRates from './components/Configuration/ResourceRates';
-import CostEstimation from './components/Analysis/CostEstimation';
-import MigrationStrategy from './components/Analysis/MigrationStrategy';
-import Timeline from './components/Analysis/Timeline';
+import CostEstimationSimple from './components/Analysis/CostEstimationSimple';
+import MigrationStrategySimple from './components/Analysis/MigrationStrategySimple';
+import TimelineSimple from './components/Analysis/TimelineSimple';
 import ExportReports from './components/Reports/ExportReports';
 
 const { Content } = Layout;
@@ -31,47 +31,45 @@ const App: React.FC = () => {
         },
       }}
     >
-      <Router>
-        <Layout className="app-layout">
-          <Sidebar />
-          <Layout style={{ marginLeft: 260 }}>
-            <Header />
-            <Content 
-              className="app-content" 
-              style={{ 
-                margin: '0', 
+      <div className="app">
+        <Router>
+          <Layout hasSider style={{ minHeight: '100vh' }}>
+            <Sidebar />
+            <Layout style={{ marginLeft: 260 }}>
+              <Header />
+              <Content style={{ 
                 padding: '24px', 
-                background: '#f5f5f5', 
-                minHeight: 'calc(100vh - 64px)',
-                overflow: 'auto'
-              }}
-            >
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                
-                {/* Inventory Management */}
-                <Route path="/inventory/servers" element={<ServerInventory />} />
-                <Route path="/inventory/databases" element={<DatabaseInventory />} />
-                <Route path="/inventory/file-shares" element={<FileShareInventory />} />
-                
-                {/* Configuration */}
-                <Route path="/configuration/cloud-preferences" element={<CloudPreferences />} />
-                <Route path="/configuration/business-constraints" element={<BusinessConstraints />} />
-                <Route path="/configuration/resource-rates" element={<ResourceRates />} />
-                
-                {/* Analysis */}
-                <Route path="/analysis/cost-estimation" element={<CostEstimation />} />
-                <Route path="/analysis/migration-strategy" element={<MigrationStrategy />} />
-                <Route path="/analysis/timeline" element={<Timeline />} />
-                
-                {/* Reports */}
-                <Route path="/reports/export" element={<ExportReports />} />
-              </Routes>
-            </Content>
+                background: '#f5f5f5',
+                overflow: 'initial',
+                minHeight: 'calc(100vh - 64px)'
+              }}>
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  
+                  {/* Inventory Management */}
+                  <Route path="/inventory/servers" element={<ServerInventory />} />
+                  <Route path="/inventory/databases" element={<DatabaseInventory />} />
+                  <Route path="/inventory/file-shares" element={<FileShareInventory />} />
+                  
+                  {/* Configuration */}
+                  <Route path="/configuration/cloud-preferences" element={<CloudPreferences />} />
+                  <Route path="/configuration/business-constraints" element={<BusinessConstraints />} />
+                  <Route path="/configuration/resource-rates" element={<ResourceRates />} />
+                  
+                  {/* Analysis */}
+                  <Route path="/analysis/cost-estimation" element={<CostEstimationSimple />} />
+                  <Route path="/analysis/migration-strategy" element={<MigrationStrategySimple />} />
+                  <Route path="/analysis/timeline" element={<TimelineSimple />} />
+                  
+                  {/* Reports */}
+                  <Route path="/reports/export" element={<ExportReports />} />
+                </Routes>
+              </Content>
+            </Layout>
           </Layout>
-        </Layout>
-      </Router>
+        </Router>
+      </div>
     </ConfigProvider>
   );
 };

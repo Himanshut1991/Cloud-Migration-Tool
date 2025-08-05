@@ -14,6 +14,119 @@
 			"group": "build",
 			"isBackground": true,
 			"problemMatcher": []
+		},
+		{
+			"label": "Populate Database",
+			"type": "shell",
+			"command": "python",
+			"args": [
+				"populate_full_data.py"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/backend"
+			},
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Start Frontend Server",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"dev"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/frontend"
+			},
+			"group": "build",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Test Backend APIs",
+			"type": "shell",
+			"command": "python",
+			"args": [
+				"test_backend_diagnosis.py"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/backend"
+			},
+			"group": "test",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Test Backend Simple",
+			"type": "shell",
+			"command": "python",
+			"args": [
+				"test_backend_simple.py"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/backend"
+			},
+			"group": "test",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Check Database Content",
+			"type": "shell",
+			"command": "python",
+			"args": [
+				"check_database.py"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/backend"
+			},
+			"group": "test",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Check Database Direct",
+			"type": "shell",
+			"command": "python",
+			"args": [
+				"check_db_direct.py"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/backend"
+			},
+			"group": "test",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Create Sample Database",
+			"type": "shell",
+			"command": "python",
+			"args": [
+				"create_sample_db.py"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/backend"
+			},
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Start Simple Backend",
+			"type": "shell",
+			"command": "python",
+			"args": [
+				"simple_app.py"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/backend"
+			},
+			"group": "build",
+			"isBackground": true,
+			"problemMatcher": []
 		}
 	]
 }

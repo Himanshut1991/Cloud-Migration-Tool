@@ -1,13 +1,8 @@
 #root {
-  height: 100vh;
   margin: 0;
   padding: 0;
 }
 
-.app-layout {
+.app {
   min-height: 100vh;
-}
-
-.app-content {
-  background: #f5f5f5;
 }

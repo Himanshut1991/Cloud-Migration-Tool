@@ -38,7 +38,7 @@ const FileShareInventory: React.FC = () => {
   const [editingFileShare, setEditingFileShare] = useState<FileShare | null>(null);
   const [form] = Form.useForm();
 
-  const API_BASE_URL = 'http://127.0.0.1:5000/api';
+  const API_BASE_URL = 'http://localhost:5000/api';
 
   // Fetch file shares
   const fetchFileShares = async () => {

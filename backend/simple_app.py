@@ -1,10 +1,21 @@
 import os
+import sqlite3
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 import pandas as pd
 import json
 from datetime import datetime, timedelta
+
+# Import AI service (with error handling)
+ai_service = None
+try:
+    from services.ai_recommendations import AIRecommendationService
+    ai_service = AIRecommendationService()
+    print("AI service initialized successfully")
+except Exception as e:
+    print(f"Warning: AI service initialization failed: {e}")
+    ai_service = None
 
 app = Flask(__name__)
 CORS(app)
@@ -870,6 +881,417 @@ def delete_resource_rate(rate_id):
         return '', 204
     except Exception as e:
         return jsonify({'error': str(e)}), 400
+
+# Analysis endpoints
+@app.route('/api/cost-estimation', methods=['GET'])
+def get_cost_estimation():
+    """Get cost estimation analysis"""
+    try:
+        # Get data from database using SQLAlchemy
+        servers_count = Server.query.count()
+        databases_count = Database.query.count()
+        file_shares_count = FileShare.query.count()
+        
+        # Get actual server and database data for AI analysis
+        servers = Server.query.all()
+        databases = Database.query.all()
+        file_shares = FileShare.query.all()
+        
+        # Calculate base costs
+        compute_cost = servers_count * 150  # $150 per server per month
+        database_cost = databases_count * 200  # $200 per database per month
+        storage_cost = file_shares_count * 100  # $100 per file share per month
+        
+        total_monthly = compute_cost + database_cost + storage_cost
+        total_migration = total_monthly * 0.5  # Migration cost is 50% of monthly
+        
+        # Try to get AI-powered recommendations first
+        ai_insights = None
+        
+        if ai_service:
+            try:
+                # Check if Bedrock client is available
+                if hasattr(ai_service, 'bedrock_client') and ai_service.bedrock_client is not None:
+                    print("🤖 AI service detected - generating recommendations...")
+                    
+                    # Prepare data for AI analysis
+                    inventory_data = {
+                        'servers': [{'id': s.server_id, 'os': s.os_type, 'environment': s.environment} for s in servers],
+                        'databases': [{'name': d.db_name, 'type': d.db_type, 'size_gb': d.size_gb} for d in databases],
+                        'file_shares': [{'name': f.share_name, 'size_gb': f.total_size_gb} for f in file_shares],
+                        'total_monthly_cost': total_monthly,
+                        'cost_breakdown': {
+                            'compute': compute_cost,
+                            'database': database_cost,
+                            'storage': storage_cost
+                        }
+                    }
+                    
+                    # Get AI recommendations with better error handling
+                    try:
+                        print(f"🔍 Calling AI service with {len(inventory_data['servers'])} servers, {len(inventory_data['databases'])} databases, {len(inventory_data['file_shares'])} file shares")
+                        ai_recommendations = ai_service.get_cost_optimization_recommendations(inventory_data)
+                        
+                        if ai_recommendations and isinstance(ai_recommendations, dict):
+                            print(f"✅ AI service returned valid response with keys: {list(ai_recommendations.keys())}")
+                            
+                            # Check if this is actually AI-generated or fallback
+                            is_ai_generated = not ai_recommendations.get('fallback_used', True)
+                            
+                            if is_ai_generated and ai_recommendations.get('recommendations'):
+                                print("🎉 Using real AI-generated recommendations!")
+                                ai_insights = {
+                                    "confidence_level": ai_recommendations.get('confidence_level', 92),
+                                    "recommendations": ai_recommendations.get('recommendations', []),
+                                    "fallback_used": False,
+                                    "ai_available": True,
+                                    "ai_status": f"✅ AWS Bedrock Active - Claude 3.5 Sonnet",
+                                    "cost_optimization_tips": ai_recommendations.get('cost_optimization_tips', [])
+                                }
+                            else:
+                                print("📋 AI service returned fallback recommendations")
+                                # Use the AI service fallback but mark it as such
+                                ai_insights = ai_recommendations
+                                ai_insights['ai_status'] = "AI service returned fallback - may indicate API limits or model issues"
+                        else:
+                            print("❌ AI service returned invalid response format")
+                            raise ValueError("Invalid AI service response")
+                            
+                    except Exception as ai_error:
+                        print(f"❌ Detailed AI service error: {str(ai_error)}")
+                        raise ai_error
+                    
+                    if ai_recommendations and 'recommendations' in ai_recommendations:
+                        ai_insights = {
+                            "confidence_level": ai_recommendations.get('confidence_level', 92),
+                            "recommendations": ai_recommendations.get('recommendations', []),
+                            "fallback_used": False,
+                            "ai_available": True,
+                            "ai_status": f"✅ AWS Bedrock Active - Model: {getattr(ai_service, 'model_id', 'Unknown')}",
+                            "cost_optimization_tips": ai_recommendations.get('cost_optimization_tips', [])
+                        }
+                        print("✅ AI recommendations generated successfully!")
+                    else:
+                        print("⚠️ AI service returned empty recommendations")
+                        
+                else:
+                    print("ℹ️ AI service exists but Bedrock client not available")
+                    
+            except Exception as e:
+                print(f"❌ AI service error: {str(e)}")
+                # Don't let AI errors crash the endpoint
+        
+        # Use rule-based fallback if AI is not available or failed
+        if ai_insights is None:
+            print("📋 Using enhanced rule-based recommendations")
+            ai_insights = {
+                "confidence_level": 85,
+                "recommendations": [
+                    f"Based on {servers_count} servers, consider reserved instances for 20-30% cost savings",
+                    f"Consolidate {databases_count} databases where possible to reduce licensing costs", 
+                    f"Implement automated scaling for {file_shares_count} file shares to optimize storage costs",
+                    "Consider spot instances for non-critical workloads",
+                    "Use cloud-native services to reduce operational overhead"
+                ],
+                "fallback_used": True,
+                "ai_available": ai_service is not None and hasattr(ai_service, 'bedrock_client') and ai_service.bedrock_client is not None,
+                "ai_status": "AWS Bedrock not available - using intelligent rule-based analysis" if not ai_service else f"AI service error - using fallback (Bedrock available: {ai_service.bedrock_client is not None})",
+                "cost_optimization_tips": [
+                    "Reserved instances can save 20-72% compared to on-demand pricing",
+                    "Use S3 storage classes for different access patterns", 
+                    "Implement auto-scaling to match demand"
+                ]
+            }
+        
+        return jsonify({
+            "total_monthly_cost": total_monthly,
+            "total_migration_cost": total_migration,
+            "cost_breakdown": {
+                "compute": compute_cost,
+                "storage": storage_cost,
+                "database": database_cost
+            },
+            "resource_details": {
+                "servers": servers_count,
+                "databases": databases_count,
+                "file_shares": file_shares_count
+            },
+            "ai_insights": ai_insights
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ai-status', methods=['GET'])
+def get_ai_status():
+    """Get AI service status"""
+    ai_available = False
+    status_message = "AI service not initialized"
+    provider = "Rule-based fallback system"
+    
+    if ai_service:
+        if hasattr(ai_service, 'bedrock_client') and ai_service.bedrock_client is not None:
+            ai_available = True
+            status_message = f"AWS Bedrock connected successfully with model: {getattr(ai_service, 'model_id', 'Unknown')}"
+            provider = f"AWS Bedrock ({getattr(ai_service, 'region_name', 'Unknown region')})"
+        else:
+            status_message = "AI service initialized but Bedrock client not available (check AWS credentials and permissions)"
+    
+    return jsonify({
+        "ai_available": ai_available,
+        "fallback_active": not ai_available,
+        "provider": provider,
+        "last_check": datetime.utcnow().isoformat(),
+        "status_message": status_message,
+        "capabilities": [
+            "Cost optimization recommendations",
+            "Migration strategy planning", 
+            "Timeline estimation",
+            "Risk assessment"
+        ],
+        "setup_required": {
+            "aws_credentials": ai_service is None,
+            "bedrock_access": ai_service is not None and (not hasattr(ai_service, 'bedrock_client') or ai_service.bedrock_client is None),
+            "model_permissions": ai_available
+        }
+    })
+
+@app.route('/api/migration-strategy', methods=['POST'])
+def get_migration_strategy():
+    """Get migration strategy analysis"""
+    try:
+        # Get data from database using SQLAlchemy
+        servers_count = Server.query.count()
+        databases_count = Database.query.count()
+        file_shares_count = FileShare.query.count()
+        
+        # Calculate timeline based on inventory
+        base_weeks = 8
+        server_weeks = servers_count * 2
+        db_weeks = databases_count * 3
+        total_weeks = base_weeks + server_weeks + db_weeks
+        
+        return jsonify({
+            "strategy_overview": {
+                "recommended_approach": "Hybrid Migration Strategy",
+                "timeline_weeks": total_weeks,
+                "confidence_level": 88,
+                "complexity_score": min(10, max(1, (servers_count + databases_count) / 2))
+            },
+            "migration_phases": [
+                {
+                    "phase": 1,
+                    "name": "Assessment & Planning",
+                    "duration_weeks": 4,
+                    "activities": [
+                        f"Assess {servers_count} servers for migration readiness",
+                        f"Analyze {databases_count} databases for cloud compatibility",
+                        "Create detailed migration roadmap"
+                    ]
+                },
+                {
+                    "phase": 2,
+                    "name": "Infrastructure Setup",
+                    "duration_weeks": 3,
+                    "activities": [
+                        "Provision cloud infrastructure",
+                        "Set up security and networking",
+                        "Configure monitoring and backup"
+                    ]
+                },
+                {
+                    "phase": 3,
+                    "name": "Data Migration",
+                    "duration_weeks": max(4, databases_count * 2),
+                    "activities": [
+                        "Migrate database content",
+                        "Validate data integrity",
+                        "Set up replication"
+                    ]
+                },
+                {
+                    "phase": 4,
+                    "name": "Application Migration",
+                    "duration_weeks": max(3, servers_count * 1),
+                    "activities": [
+                        "Migrate applications and services",
+                        "Update configurations",
+                        "Test functionality"
+                    ]
+                }
+            ],
+            "recommendations": [
+                {
+                    "type": "Strategy",
+                    "title": "Lift and Shift Approach",
+                    "description": f"Recommended for {servers_count} servers to minimize complexity",
+                    "priority": "High"
+                },
+                {
+                    "type": "Optimization",
+                    "title": "Database Modernization",
+                    "description": f"Consider cloud-native services for {databases_count} databases",
+                    "priority": "Medium"
+                }
+            ],
+            "risk_assessment": [
+                {
+                    "risk": "Data Migration Complexity",
+                    "probability": "Medium",
+                    "impact": "High",
+                    "mitigation": "Implement comprehensive testing and rollback procedures"
+                }
+            ]
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/timeline', methods=['POST'])
+def get_timeline():
+    """Get migration timeline"""
+    try:
+        request_data = request.get_json() or {}
+        custom_start_date = request_data.get('start_date')
+        
+        # Get data from database using SQLAlchemy
+        servers_count = Server.query.count()
+        databases_count = Database.query.count() 
+        file_shares_count = FileShare.query.count()
+        
+        # Calculate timeline
+        base_weeks = 8
+        server_weeks = servers_count * 2
+        db_weeks = databases_count * 3
+        total_weeks = base_weeks + server_weeks + db_weeks
+        
+        # Handle custom start date
+        if custom_start_date:
+            try:
+                start_date = datetime.strptime(custom_start_date, '%Y-%m-%d')
+            except ValueError:
+                start_date = datetime(2024, 3, 1)
+        else:
+            start_date = datetime(2024, 3, 1)
+        
+        end_date = start_date + timedelta(weeks=total_weeks)
+        
+        return jsonify({
+            "project_overview": {
+                "total_duration_weeks": total_weeks,
+                "total_duration_months": round(total_weeks / 4, 1),
+                "estimated_start_date": start_date.strftime('%Y-%m-%d'),
+                "estimated_end_date": end_date.strftime('%Y-%m-%d'),
+                "confidence_level": "90%",
+                "complexity_score": min(10, max(1, (servers_count + databases_count + file_shares_count) / 3))
+            },
+            "phases": [
+                {
+                    "phase": 1,
+                    "title": "Assessment & Planning",
+                    "description": f"Assessment of {servers_count} servers, {databases_count} databases, {file_shares_count} file shares",
+                    "duration_weeks": 4,
+                    "start_week": 1,
+                    "end_week": 4,
+                    "dependencies": [],
+                    "milestones": ["Infrastructure Assessment Complete", "Migration Plan Approved"],
+                    "components": ["Server Assessment", "Database Analysis", "Network Planning"],
+                    "risks": ["Incomplete inventory", "Resource availability"],
+                    "resources_required": ["Cloud Architect", "Database Expert", "Network Engineer"],
+                    "status": "pending"
+                },
+                {
+                    "phase": 2,
+                    "title": "Environment Setup",
+                    "description": "Set up cloud infrastructure and prepare migration tools",
+                    "duration_weeks": 3,
+                    "start_week": 5,
+                    "end_week": 7,
+                    "dependencies": ["Phase 1"],
+                    "milestones": ["Cloud Environment Ready", "Migration Tools Configured"],
+                    "components": ["VPC Setup", "Security Groups", "Database Setup"],
+                    "risks": ["Cloud service limitations", "Security compliance"],
+                    "resources_required": ["DevOps Engineer", "Security Specialist"],
+                    "status": "pending"
+                }
+            ],
+            "critical_path": ["Phase 1", "Phase 2"],
+            "resource_allocation": [
+                {
+                    "role": "Cloud Architect",
+                    "weeks_allocated": total_weeks,
+                    "overlap_phases": [1, 2],
+                    "peak_utilization_week": 2
+                }
+            ],
+            "risk_mitigation": [
+                {
+                    "risk": "Data corruption during migration",
+                    "probability": "Low",
+                    "impact": "High",
+                    "mitigation_strategy": "Comprehensive backup and testing strategy",
+                    "timeline_buffer_weeks": 2
+                }
+            ],
+            "success_criteria": [
+                "All servers migrated successfully",
+                "Zero data loss during migration",
+                "Application performance maintained"
+            ],
+            "ai_insights": {
+                "optimization_suggestions": [
+                    f"Timeline optimized for {servers_count} servers and {databases_count} databases",
+                    "Consider parallel migrations to reduce timeline"
+                ],
+                "timeline_risks": [
+                    "Database migration complexity varies by size",
+                    "Server dependencies may extend timeline"
+                ],
+                "resource_recommendations": [
+                    "Scale team based on inventory size",
+                    "Add specialists for complex databases"
+                ]
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/debug-ai', methods=['GET'])
+def debug_ai():
+    """Debug AI service for troubleshooting"""
+    debug_info = {
+        "ai_service_exists": ai_service is not None,
+        "bedrock_client_exists": False,
+        "model_id": None,
+        "test_result": None,
+        "error": None
+    }
+    
+    if ai_service:
+        debug_info["bedrock_client_exists"] = hasattr(ai_service, 'bedrock_client') and ai_service.bedrock_client is not None
+        debug_info["model_id"] = getattr(ai_service, 'model_id', 'Unknown')
+        
+        if debug_info["bedrock_client_exists"]:
+            try:
+                # Test with minimal data
+                test_data = {
+                    'servers': [{'id': 'test', 'os': 'Windows', 'environment': 'Test'}],
+                    'databases': [],
+                    'file_shares': []
+                }
+                result = ai_service.get_cost_optimization_recommendations(test_data)
+                debug_info["test_result"] = {
+                    "success": True,
+                    "type": str(type(result)),
+                    "has_recommendations": isinstance(result, dict) and bool(result.get('recommendations')),
+                    "fallback_used": result.get('fallback_used', True) if isinstance(result, dict) else True
+                }
+            except Exception as e:
+                debug_info["test_result"] = {"success": False, "error": str(e)}
+                debug_info["error"] = str(e)
+    
+    return jsonify(debug_info)
 
 if __name__ == '__main__':
     with app.app_context():
