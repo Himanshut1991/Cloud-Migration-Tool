@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Backend CORS and Form Submission</title>
+</head>
+<body>
+    <h1>Backend CORS and Form Submission Test</h1>
+    <div id="results"></div>
+    
+    <button onclick="testServerCRUD()">Test Server CRUD</button>
+    <button onclick="testDatabaseCRUD()">Test Database CRUD</button>
+    <button onclick="testFileShareCRUD()">Test File Share CRUD</button>
+    <button onclick="testResourceRateCRUD()">Test Resource Rate CRUD</button>
+    
+    <script>
+    async function logResult(message, isError = false) {
+        const results = document.getElementById('results');
+        const color = isError ? 'red' : 'green';
+        results.innerHTML += `<p style="color: ${color}">${message}</p>`;
+        console.log(message);
+    }
+    
+    async function testServerCRUD() {
+        await logResult('🔄 Testing Server CRUD...');
+        
+        try {
+            // Test POST
+            const newServer = {
+                server_id: "TEST-SRV-" + Date.now(),
+                os_type: "Windows Server 2019",
+                vcpu: 4,
+                ram: 16,
+                disk_size: 500,
+                disk_type: "SSD",
+                uptime_pattern: "24x7",
+                current_hosting: "On-Premise",
+                technology: "Web Server",
+                technology_version: "1.0"
+            };
+            
+            const postResponse = await fetch('http://127.0.0.1:5000/api/servers', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(newServer)
+            });
+            
+            if (postResponse.ok) {
+                const result = await postResponse.json();
+                await logResult(`✅ Server POST successful: ${JSON.stringify(result)}`);
+                
+                // Test GET to verify
+                const getResponse = await fetch('http://127.0.0.1:5000/api/servers');
+                if (getResponse.ok) {
+                    const servers = await getResponse.json();
+                    await logResult(`✅ Server GET successful: Found ${servers.servers ? servers.servers.length : servers.length} servers`);
+                } else {
+                    await logResult(`❌ Server GET failed: ${getResponse.status}`, true);
+                }
+            } else {
+                const error = await postResponse.text();
+                await logResult(`❌ Server POST failed: ${postResponse.status} - ${error}`, true);
+            }
+        } catch (error) {
+            await logResult(`❌ Server test error: ${error.message}`, true);
+        }
+    }
+    
+    async function testDatabaseCRUD() {
+        await logResult('🔄 Testing Database CRUD...');
+        
+        try {
+            const newDatabase = {
+                db_name: "TestDB-" + Date.now(),
+                db_type: "MySQL",
+                size_gb: 100,
+                ha_dr_required: 1,
+                backup_frequency: "Daily",
+                licensing_model: "Open Source",
+                server_id: "SRV-001",
+                write_frequency: "High",
+                downtime_tolerance: "Low",
+                real_time_sync: 1
+            };
+            
+            const response = await fetch('http://127.0.0.1:5000/api/databases', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(newDatabase)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                await logResult(`✅ Database POST successful: ${JSON.stringify(result)}`);
+            } else {
+                const error = await response.text();
+                await logResult(`❌ Database POST failed: ${response.status} - ${error}`, true);
+            }
+        } catch (error) {
+            await logResult(`❌ Database test error: ${error.message}`, true);
+        }
+    }
+    
+    async function testFileShareCRUD() {
+        await logResult('🔄 Testing File Share CRUD...');
+        
+        try {
+            const newFileShare = {
+                share_name: "TestShare-" + Date.now(),
+                total_size_gb: 50,
+                access_pattern: "Read-Heavy",
+                snapshot_required: 1,
+                retention_days: 30,
+                server_id: "SRV-001",
+                write_frequency: "Medium",
+                downtime_tolerance: "Medium",
+                real_time_sync: 0
+            };
+            
+            const response = await fetch('http://127.0.0.1:5000/api/file-shares', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(newFileShare)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                await logResult(`✅ File Share POST successful: ${JSON.stringify(result)}`);
+            } else {
+                const error = await response.text();
+                await logResult(`❌ File Share POST failed: ${response.status} - ${error}`, true);
+            }
+        } catch (error) {
+            await logResult(`❌ File Share test error: ${error.message}`, true);
+        }
+    }
+    
+    async function testResourceRateCRUD() {
+        await logResult('🔄 Testing Resource Rate CRUD...');
+        
+        try {
+            const newResourceRate = {
+                resource_type: "Test-VM-" + Date.now(),
+                hourly_rate: 0.50,
+                monthly_rate: 360.00,
+                annual_rate: 4320.00,
+                region: "us-east-1"
+            };
+            
+            const response = await fetch('http://127.0.0.1:5000/api/resource-rates', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(newResourceRate)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                await logResult(`✅ Resource Rate POST successful: ${JSON.stringify(result)}`);
+            } else {
+                const error = await response.text();
+                await logResult(`❌ Resource Rate POST failed: ${response.status} - ${error}`, true);
+            }
+        } catch (error) {
+            await logResult(`❌ Resource Rate test error: ${error.message}`, true);
+        }
+    }
+    </script>
+</body>
+</html>

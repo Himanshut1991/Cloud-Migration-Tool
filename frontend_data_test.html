@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Data Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .endpoint { margin: 20px 0; padding: 10px; border: 1px solid #ccc; }
+        .data { background: #f5f5f5; padding: 10px; margin: 10px 0; white-space: pre-wrap; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>Frontend Data Loading Test</h1>
+    <p>This tests if the frontend can connect to the backend from the browser.</p>
+    
+    <div class="endpoint">
+        <h3>Test Connection to Backend</h3>
+        <div id="status"></div>
+        <div id="data" class="data"></div>
+    </div>
+
+    <script>
+        async function testConnection() {
+            const statusEl = document.getElementById('status');
+            const dataEl = document.getElementById('data');
+            
+            const endpoints = ['servers', 'databases', 'file-shares'];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    statusEl.innerHTML += `<p style="color: blue;">Testing ${endpoint}...</p>`;
+                    
+                    const response = await fetch(`http://localhost:5000/api/${endpoint}`);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    statusEl.innerHTML += `<p class="success">✅ ${endpoint}: Found ${Object.keys(data)[0] && data[Object.keys(data)[0]] ? data[Object.keys(data)[0]].length : 0} items</p>`;
+                    
+                    // Show sample data
+                    dataEl.innerHTML += `\n=== ${endpoint.toUpperCase()} ===\n` + JSON.stringify(data, null, 2) + '\n\n';
+                    
+                } catch (error) {
+                    statusEl.innerHTML += `<p class="error">❌ ${endpoint}: ${error.message}</p>`;
+                }
+            }
+        }
+        
+        window.onload = testConnection;
+    </script>
+</body>
+</html>

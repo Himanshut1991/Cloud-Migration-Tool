@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test File Shares API</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .endpoint {
+            margin-bottom: 30px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .response {
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 3px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow: auto;
+        }
+        button {
+            background: #1890ff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #40a9ff;
+        }
+        .error {
+            color: red;
+            background: #fff2f0;
+            border: 1px solid #ffccc7;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 File Shares API Test</h1>
+        
+        <div class="endpoint">
+            <h3>📁 GET /api/file-shares</h3>
+            <button onclick="testFileShares()">Test File Shares</button>
+            <div id="fileSharesResponse" class="response"></div>
+        </div>
+
+        <div class="endpoint">
+            <h3>🖥️ GET /api/servers</h3>
+            <button onclick="testServers()">Test Servers</button>
+            <div id="serversResponse" class="response"></div>
+        </div>
+
+        <div class="endpoint">
+            <h3>🗄️ GET /api/databases</h3>
+            <button onclick="testDatabases()">Test Databases</button>
+            <div id="databasesResponse" class="response"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+
+        async function testEndpoint(endpoint, responseElementId) {
+            const responseEl = document.getElementById(responseElementId);
+            responseEl.textContent = 'Loading...';
+            responseEl.className = 'response';
+            
+            try {
+                console.log(`🔍 Testing ${endpoint}...`);
+                const response = await fetch(`${API_BASE}${endpoint}`);
+                console.log(`📡 Response status: ${response.status}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log(`✅ ${endpoint} response:`, data);
+                
+                responseEl.textContent = JSON.stringify(data, null, 2);
+                responseEl.className = 'response';
+            } catch (error) {
+                console.error(`❌ Error testing ${endpoint}:`, error);
+                responseEl.textContent = `Error: ${error.message}`;
+                responseEl.className = 'response error';
+            }
+        }
+
+        function testFileShares() {
+            testEndpoint('/file-shares', 'fileSharesResponse');
+        }
+
+        function testServers() {
+            testEndpoint('/servers', 'serversResponse');
+        }
+
+        function testDatabases() {
+            testEndpoint('/databases', 'databasesResponse');
+        }
+
+        // Auto-test on page load
+        window.onload = () => {
+            console.log('🚀 Starting API tests...');
+            testFileShares();
+            testServers();
+            testDatabases();
+        };
+    </script>
+</body>
+</html>

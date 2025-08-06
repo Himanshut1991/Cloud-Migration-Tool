@@ -15,11 +15,24 @@ import { Line, Column, Pie } from '@ant-design/plots';
 const { Title, Paragraph } = Typography;
 
 interface DashboardData {
-  servers_count: number;
-  databases_count: number;
-  file_shares_count: number;
-  total_data_size_gb: number;
-  last_updated: string;
+  infrastructure_summary: {
+    servers: number;
+    databases: number;
+    file_shares: number;
+    total_items: number;
+    total_data_gb: number;
+  };
+  cost_estimation: {
+    monthly_cost: number;
+    annual_cost: number;
+    currency: string;
+    last_updated: string;
+  };
+  migration_timeline: {
+    estimated_duration_weeks: number;
+    phases: number;
+    complexity: string;
+  };
 }
 
 const Dashboard: React.FC = () => {
@@ -131,7 +144,7 @@ const Dashboard: React.FC = () => {
           <Card>
             <Statistic
               title="Total Servers"
-              value={dashboardData?.servers_count || 0}
+              value={dashboardData?.infrastructure_summary?.servers || 0}
               prefix={<DesktopOutlined />}
               valueStyle={{ color: '#1890ff' }}
             />
@@ -141,7 +154,7 @@ const Dashboard: React.FC = () => {
           <Card>
             <Statistic
               title="Total Databases"
-              value={dashboardData?.databases_count || 0}
+              value={dashboardData?.infrastructure_summary?.databases || 0}
               prefix={<DatabaseOutlined />}
               valueStyle={{ color: '#52c41a' }}
             />
@@ -151,7 +164,7 @@ const Dashboard: React.FC = () => {
           <Card>
             <Statistic
               title="File Shares"
-              value={dashboardData?.file_shares_count || 0}
+              value={dashboardData?.infrastructure_summary?.file_shares || 0}
               prefix={<FolderOpenOutlined />}
               valueStyle={{ color: '#fa8c16' }}
             />
@@ -161,7 +174,7 @@ const Dashboard: React.FC = () => {
           <Card>
             <Statistic
               title="Total Data (GB)"
-              value={dashboardData?.total_data_size_gb || 0}
+              value={dashboardData?.infrastructure_summary?.total_data_gb || 0}
               prefix={<CloudOutlined />}
               valueStyle={{ color: '#eb2f96' }}
               precision={0}

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Frontend Form Simulation Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; font-family: monospace; }
+        button { margin: 5px; padding: 10px 15px; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Frontend Form Simulation Test</h1>
+    <p>This test simulates exactly what the frontend forms should be doing.</p>
+    
+    <div class="test-section">
+        <h2>Server Form Test</h2>
+        <button onclick="testServerForm()">Test Server Form Submission</button>
+        <div id="serverLog" class="log"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Database Form Test</h2>
+        <button onclick="testDatabaseForm()">Test Database Form Submission</button>
+        <div id="databaseLog" class="log"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>File Share Form Test</h2>
+        <button onclick="testFileShareForm()">Test File Share Form Submission</button>
+        <div id="fileshareLog" class="log"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Resource Rate Form Test</h2>
+        <button onclick="testResourceRateForm()">Test Resource Rate Form Submission</button>
+        <div id="resourceLog" class="log"></div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <script>
+    function log(containerId, message, isError = false) {
+        const container = document.getElementById(containerId);
+        const className = isError ? 'error' : 'success';
+        container.innerHTML += `<div class="${className}">${new Date().toISOString()}: ${message}</div>`;
+        console.log(message);
+    }
+    
+    async function testServerForm() {
+        const containerId = 'serverLog';
+        log(containerId, '🔄 Starting Server Form Test...');
+        
+        const formData = {
+            server_id: "TEST-SRV-" + Date.now(),
+            os_type: "Windows Server 2019",
+            vcpu: 4,
+            ram: 16,
+            disk_size: 500,
+            disk_type: "SSD",
+            uptime_pattern: "24x7",
+            current_hosting: "On-Premise",
+            technology: "Web Server",
+            technology_version: "1.0"
+        };
+        
+        log(containerId, '📝 Form data: ' + JSON.stringify(formData));
+        
+        try {
+            // Using fetch (same as ServerInventory.tsx)
+            log(containerId, '🌐 Sending POST request to http://127.0.0.1:5000/api/servers');
+            
+            const response = await fetch('http://127.0.0.1:5000/api/servers', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData),
+            });
+            
+            log(containerId, `📡 Response status: ${response.status}`);
+            
+            const responseText = await response.text();
+            log(containerId, `📄 Response text: ${responseText}`);
+            
+            if (response.ok) {
+                log(containerId, '✅ Server form submission successful!');
+                
+                // Test GET to verify
+                const getResponse = await fetch('http://127.0.0.1:5000/api/servers');
+                if (getResponse.ok) {
+                    const getData = await getResponse.json();
+                    log(containerId, `✅ Verification: Found ${getData.servers ? getData.servers.length : getData.length} servers`);
+                }
+            } else {
+                log(containerId, '❌ Server form submission failed: ' + responseText, true);
+            }
+        } catch (error) {
+            log(containerId, '❌ Error: ' + error.message, true);
+        }
+    }
+    
+    async function testDatabaseForm() {
+        const containerId = 'databaseLog';
+        log(containerId, '🔄 Starting Database Form Test...');
+        
+        const formData = {
+            db_name: "TestDB-" + Date.now(),
+            db_type: "MySQL",
+            size_gb: 100,
+            ha_dr_required: 1,
+            backup_frequency: "Daily",
+            licensing_model: "Open Source",
+            server_id: "SRV-001",
+            write_frequency: "High",
+            downtime_tolerance: "Low",
+            real_time_sync: 1
+        };
+        
+        log(containerId, '📝 Form data: ' + JSON.stringify(formData));
+        
+        try {
+            // Using axios (same as DatabaseInventory.tsx)
+            log(containerId, '🌐 Sending POST request via axios to http://127.0.0.1:5000/api/databases');
+            
+            const response = await axios.post('http://127.0.0.1:5000/api/databases', formData);
+            
+            log(containerId, `📡 Response status: ${response.status}`);
+            log(containerId, `📄 Response data: ${JSON.stringify(response.data)}`);
+            
+            if (response.status >= 200 && response.status < 300) {
+                log(containerId, '✅ Database form submission successful!');
+            } else {
+                log(containerId, '❌ Database form submission failed: ' + JSON.stringify(response.data), true);
+            }
+        } catch (error) {
+            log(containerId, '❌ Error: ' + error.message, true);
+            if (error.response) {
+                log(containerId, '❌ Error response: ' + JSON.stringify(error.response.data), true);
+                log(containerId, '❌ Error status: ' + error.response.status, true);
+            }
+        }
+    }
+    
+    async function testFileShareForm() {
+        const containerId = 'fileshareLog';
+        log(containerId, '🔄 Starting File Share Form Test...');
+        
+        const formData = {
+            share_name: "TestShare-" + Date.now(),
+            total_size_gb: 50,
+            access_pattern: "Read-Heavy",
+            snapshot_required: 1,
+            retention_days: 30,
+            server_id: "SRV-001",
+            write_frequency: "Medium",
+            downtime_tolerance: "Medium",
+            real_time_sync: 0
+        };
+        
+        log(containerId, '📝 Form data: ' + JSON.stringify(formData));
+        
+        try {
+            // Using axios (same as FileShareInventory.tsx)
+            log(containerId, '🌐 Sending POST request via axios to http://127.0.0.1:5000/api/file-shares');
+            
+            const response = await axios.post('http://127.0.0.1:5000/api/file-shares', formData);
+            
+            log(containerId, `📡 Response status: ${response.status}`);
+            log(containerId, `📄 Response data: ${JSON.stringify(response.data)}`);
+            
+            if (response.status >= 200 && response.status < 300) {
+                log(containerId, '✅ File Share form submission successful!');
+            } else {
+                log(containerId, '❌ File Share form submission failed: ' + JSON.stringify(response.data), true);
+            }
+        } catch (error) {
+            log(containerId, '❌ Error: ' + error.message, true);
+            if (error.response) {
+                log(containerId, '❌ Error response: ' + JSON.stringify(error.response.data), true);
+                log(containerId, '❌ Error status: ' + error.response.status, true);
+            }
+        }
+    }
+    
+    async function testResourceRateForm() {
+        const containerId = 'resourceLog';
+        log(containerId, '🔄 Starting Resource Rate Form Test...');
+        
+        const formData = {
+            resource_type: "Test-VM-" + Date.now(),
+            hourly_rate: 0.50,
+            monthly_rate: 360.00,
+            annual_rate: 4320.00,
+            region: "us-east-1"
+        };
+        
+        log(containerId, '📝 Form data: ' + JSON.stringify(formData));
+        
+        try {
+            // Using axios (same as ResourceRates.tsx)
+            log(containerId, '🌐 Sending POST request via axios to http://127.0.0.1:5000/api/resource-rates');
+            
+            const response = await axios.post('http://127.0.0.1:5000/api/resource-rates', formData);
+            
+            log(containerId, `📡 Response status: ${response.status}`);
+            log(containerId, `📄 Response data: ${JSON.stringify(response.data)}`);
+            
+            if (response.status >= 200 && response.status < 300) {
+                log(containerId, '✅ Resource Rate form submission successful!');
+            } else {
+                log(containerId, '❌ Resource Rate form submission failed: ' + JSON.stringify(response.data), true);
+            }
+        } catch (error) {
+            log(containerId, '❌ Error: ' + error.message, true);
+            if (error.response) {
+                log(containerId, '❌ Error response: ' + JSON.stringify(error.response.data), true);
+                log(containerId, '❌ Error status: ' + error.response.status, true);
+            }
+        }
+    }
+    </script>
+</body>
+</html>

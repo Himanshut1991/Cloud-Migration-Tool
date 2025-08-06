@@ -32,6 +32,7 @@ interface Server {
   technology: string;
   technology_version: string;
   created_at: string;
+  updated_at?: string;
 }
 
 const ServerInventory: React.FC = () => {
@@ -48,16 +49,62 @@ const ServerInventory: React.FC = () => {
   const fetchServers = async () => {
     console.log('🔄 ServerInventory: Starting to fetch servers...');
     try {
-      console.log('🌐 ServerInventory: Making request to http://localhost:5000/api/servers');
-      const response = await fetch('http://localhost:5000/api/servers');
-      console.log(`📡 ServerInventory: Response status: ${response.status}`);
+      // Try multiple URLs to see which one works
+      const urls = [
+        'http://127.0.0.1:5000/api/servers',
+        'http://localhost:5000/api/servers',
+        `${window.location.protocol}//${window.location.hostname}:5000/api/servers`
+      ];
       
-      const data = await response.json();
-      console.log('✅ ServerInventory: Data received:', data);
-      setServers(data);
+      let response: Response | null = null;
+      let data: any = null;
+      
+      for (const url of urls) {
+        try {
+          console.log(`🌐 ServerInventory: Trying URL: ${url}`);
+          const currentResponse = await fetch(url);
+          console.log(`📡 ServerInventory: Response status for ${url}: ${currentResponse.status}`);
+          
+          if (currentResponse.ok) {
+            response = currentResponse;
+            data = await currentResponse.json();
+            console.log(`✅ ServerInventory: Success with ${url}:`, data);
+            break;
+          }
+        } catch (urlError) {
+          console.log(`❌ ServerInventory: Failed with ${url}:`, (urlError as Error).message);
+          continue;
+        }
+      }
+      
+      if (!response || !response.ok || !data) {
+        throw new Error('All URLs failed');
+      }
+      
+      // Backend returns {servers: [...]} or possibly just [...]
+      let servers: Server[] = [];
+      if (data && typeof data === 'object' && data.servers && Array.isArray(data.servers)) {
+        servers = data.servers;
+        console.log(`✅ ServerInventory: Found servers array with ${servers.length} items`);
+      } else if (Array.isArray(data)) {
+        servers = data;
+        console.log(`✅ ServerInventory: Data is direct array with ${servers.length} items`);
+      } else {
+        console.warn('⚠️ ServerInventory: Unexpected data format:', data);
+        console.warn('⚠️ ServerInventory: Data type:', typeof data);
+        if (data && typeof data === 'object') {
+          console.warn('⚠️ ServerInventory: Data keys:', Object.keys(data));
+        }
+        servers = [];
+      }
+      
+      console.log(`🎯 ServerInventory: Setting ${servers.length} servers to state`);
+      setServers(servers);
+      
     } catch (error) {
       console.error('❌ ServerInventory: Error:', error);
-      message.error('Failed to fetch servers');
+      message.error(`Failed to fetch servers: ${error.message}`);
+      setServers([]);
     } finally {
       setLoading(false);
       console.log('🏁 ServerInventory: Fetch completed');
@@ -65,12 +112,19 @@ const ServerInventory: React.FC = () => {
   };
 
   const handleSubmit = async (values: any) => {
+    console.log('🔄 ServerInventory: Form submission started');
+    console.log('📝 ServerInventory: Form values:', values);
+    console.log('✏️ ServerInventory: Editing server:', editingServer);
+    
     try {
       const url = editingServer 
-        ? `http://localhost:5000/api/servers/${editingServer.id}`
-        : 'http://localhost:5000/api/servers';
+        ? `http://127.0.0.1:5000/api/servers/${editingServer.id}`
+        : 'http://127.0.0.1:5000/api/servers';
       
       const method = editingServer ? 'PUT' : 'POST';
+      
+      console.log(`🌐 ServerInventory: Sending ${method} request to ${url}`);
+      console.log('📦 ServerInventory: Request body:', JSON.stringify(values));
       
       const response = await fetch(url, {
         method,
@@ -80,17 +134,26 @@ const ServerInventory: React.FC = () => {
         body: JSON.stringify(values),
       });
 
+      console.log(`📡 ServerInventory: Response status: ${response.status}`);
+      console.log(`📡 ServerInventory: Response headers:`, response.headers);
+      
+      const responseText = await response.text();
+      console.log(`📄 ServerInventory: Response text: ${responseText}`);
+
       if (response.ok) {
+        console.log('✅ ServerInventory: Request successful');
         message.success(`Server ${editingServer ? 'updated' : 'added'} successfully`);
         setModalVisible(false);
         setEditingServer(null);
         form.resetFields();
-        fetchServers();
+        await fetchServers();
       } else {
-        message.error('Failed to save server');
+        console.log('❌ ServerInventory: Request failed');
+        message.error(`Failed to save server: ${response.status} - ${responseText}`);
       }
     } catch (error) {
-      message.error('Failed to save server');
+      console.error('❌ ServerInventory: Error in handleSubmit:', error);
+      message.error(`Failed to save server: ${(error as Error).message}`);
     }
   };
 
@@ -102,7 +165,7 @@ const ServerInventory: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/servers/${id}`, {
+      const response = await fetch(`http://127.0.0.1:5000/api/servers/${id}`, {
         method: 'DELETE',
       });
 
@@ -161,6 +224,11 @@ const ServerInventory: React.FC = () => {
       title: 'Disk Type',
       dataIndex: 'disk_type',
       key: 'disk_type',
+      render: (text: string) => (
+        <Tag color={text === 'SSD' ? 'green' : 'blue'}>
+          {text}
+        </Tag>
+      ),
     },
     {
       title: 'Current Hosting',
@@ -168,17 +236,11 @@ const ServerInventory: React.FC = () => {
       key: 'current_hosting',
     },
     {
-      title: 'Technologies',
+      title: 'Technology',
       dataIndex: 'technology',
       key: 'technology',
-      render: (text: string) => (
-        <div>
-          {text?.split(',').map((tech, index) => (
-            <Tag key={index} style={{ marginBottom: 4 }}>
-              {tech.trim()}
-            </Tag>
-          ))}
-        </div>
+      render: (text: string, record: Server) => (
+        <span>{text} {record.technology_version}</span>
       ),
     },
     {
@@ -262,15 +324,15 @@ const ServerInventory: React.FC = () => {
             label="Server ID"
             rules={[{ required: true, message: 'Please input server ID!' }]}
           >
-            <Input placeholder="e.g., APP-SVR-01" />
+            <Input placeholder="e.g., SRV-001, APP-SVR-01" />
           </Form.Item>
 
           <Form.Item
             name="os_type"
-            label="OS Type"
-            rules={[{ required: true, message: 'Please select OS type!' }]}
+            label="Operating System"
+            rules={[{ required: true, message: 'Please select OS!' }]}
           >
-            <Select placeholder="Select OS type">
+            <Select placeholder="Select OS">
               <Option value="Windows Server 2019">Windows Server 2019</Option>
               <Option value="Windows Server 2016">Windows Server 2016</Option>
               <Option value="Windows Server 2012 R2">Windows Server 2012 R2</Option>
@@ -322,6 +384,7 @@ const ServerInventory: React.FC = () => {
               <Select placeholder="Select disk type">
                 <Option value="SSD">SSD</Option>
                 <Option value="HDD">HDD</Option>
+                <Option value="NVMe">NVMe</Option>
               </Select>
             </Form.Item>
           </div>
@@ -329,49 +392,47 @@ const ServerInventory: React.FC = () => {
           <Form.Item
             name="uptime_pattern"
             label="Uptime Pattern"
-            rules={[{ required: true, message: 'Please select uptime pattern!' }]}
+            rules={[{ required: true, message: 'Please input uptime pattern!' }]}
           >
             <Select placeholder="Select uptime pattern">
-              <Option value="24/7">24/7</Option>
-              <Option value="Business Hours">Business Hours (8AM-6PM)</Option>
-              <Option value="Extended Hours">Extended Hours (6AM-10PM)</Option>
-              <Option value="Weekend Off">Weekend Off</Option>
+              <Option value="24x7">24x7</Option>
+              <Option value="Business Hours">Business Hours</Option>
+              <Option value="Variable">Variable</Option>
             </Select>
           </Form.Item>
 
           <Form.Item
             name="current_hosting"
             label="Current Hosting"
-            rules={[{ required: true, message: 'Please select current hosting!' }]}
+            rules={[{ required: true, message: 'Please input current hosting!' }]}
           >
-            <Select placeholder="Select current hosting">
-              <Option value="On-Premise Physical">On-Premise Physical</Option>
-              <Option value="VMware">VMware</Option>
-              <Option value="Hyper-V">Hyper-V</Option>
-              <Option value="AWS EC2">AWS EC2</Option>
-              <Option value="Azure VM">Azure VM</Option>
-              <Option value="Google Compute">Google Compute</Option>
+            <Select placeholder="Select hosting">
+              <Option value="On-Premise">On-Premise</Option>
+              <Option value="Colocation">Colocation</Option>
+              <Option value="Hybrid Cloud">Hybrid Cloud</Option>
+              <Option value="Public Cloud">Public Cloud</Option>
             </Select>
           </Form.Item>
 
-          <Form.Item
-            name="technology"
-            label="Technologies (comma-separated)"
-            extra="e.g., JBoss, MySQL, Apache, Redis"
-          >
-            <Input.TextArea
-              rows={3}
-              placeholder="List technologies running on this server"
-            />
-          </Form.Item>
+          <div style={{ display: 'flex', gap: 16 }}>
+            <Form.Item
+              name="technology"
+              label="Technology"
+              rules={[{ required: true, message: 'Please input technology!' }]}
+              style={{ flex: 1 }}
+            >
+              <Input placeholder="e.g., Web Server, Database, Application" />
+            </Form.Item>
 
-          <Form.Item
-            name="technology_version"
-            label="Technology Versions"
-            extra="Version information for key technologies"
-          >
-            <Input placeholder="e.g., JBoss 7.4, MySQL 8.0" />
-          </Form.Item>
+            <Form.Item
+              name="technology_version"
+              label="Technology Version"
+              rules={[{ required: true, message: 'Please input version!' }]}
+              style={{ flex: 1 }}
+            >
+              <Input placeholder="e.g., 1.0, 2.1" />
+            </Form.Item>
+          </div>
 
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
             <Space>

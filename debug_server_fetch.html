@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Server Data Debug - React Style</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .loading { color: blue; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>Server Inventory - Debug Version</h1>
+    <div id="status" class="loading">Loading...</div>
+    <div id="count"></div>
+    <table id="serverTable" style="display:none;">
+        <thead>
+            <tr>
+                <th>Server ID</th>
+                <th>OS Type</th>
+                <th>vCPU</th>
+                <th>RAM (GB)</th>
+                <th>Disk Size (GB)</th>
+                <th>Disk Type</th>
+                <th>Technology</th>
+                <th>Current Hosting</th>
+            </tr>
+        </thead>
+        <tbody id="serverTableBody"></tbody>
+    </table>
+
+    <script>
+        // Simulate the exact same fetch logic as React component
+        async function fetchServers() {
+            const statusDiv = document.getElementById('status');
+            const countDiv = document.getElementById('count');
+            const table = document.getElementById('serverTable');
+            const tableBody = document.getElementById('serverTableBody');
+            
+            console.log('🔄 Starting to fetch servers...');
+            statusDiv.textContent = 'Fetching servers...';
+            statusDiv.className = 'loading';
+            
+            try {
+                console.log('🌐 Making request to http://127.0.0.1:5000/api/servers');
+                const response = await fetch('http://127.0.0.1:5000/api/servers');
+                console.log(`📡 Response status: ${response.status}`);
+                
+                const data = await response.json();
+                console.log('✅ Data received:', data);
+                
+                // Extract servers array exactly like React component
+                let servers = [];
+                if (data.servers && Array.isArray(data.servers)) {
+                    servers = data.servers;
+                    console.log(`✅ Found ${servers.length} servers`);
+                } else {
+                    console.warn('⚠️ Unexpected data format:', data);
+                    console.warn('⚠️ Type of data:', typeof data);
+                    console.warn('⚠️ Is array:', Array.isArray(data));
+                    console.warn('⚠️ Has servers property:', 'servers' in data);
+                    
+                    // Maybe the backend returns an array directly?
+                    if (Array.isArray(data)) {
+                        servers = data;
+                        console.log(`✅ Data is direct array with ${servers.length} servers`);
+                    }
+                }
+                
+                if (servers.length > 0) {
+                    statusDiv.textContent = 'Data loaded successfully!';
+                    statusDiv.className = 'success';
+                    countDiv.textContent = `Found ${servers.length} servers`;
+                    
+                    // Populate table
+                    servers.forEach(server => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${server.server_id || 'N/A'}</td>
+                            <td>${server.os_type || 'N/A'}</td>
+                            <td>${server.vcpu || 'N/A'}</td>
+                            <td>${server.ram || 'N/A'}</td>
+                            <td>${server.disk_size || 'N/A'}</td>
+                            <td>${server.disk_type || 'N/A'}</td>
+                            <td>${server.technology || 'N/A'} ${server.technology_version || ''}</td>
+                            <td>${server.current_hosting || 'N/A'}</td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                    
+                    table.style.display = 'table';
+                } else {
+                    statusDiv.textContent = 'No servers found';
+                    statusDiv.className = 'error';
+                    countDiv.textContent = 'No servers in response';
+                    
+                    // Show raw data for debugging
+                    const debugDiv = document.createElement('div');
+                    debugDiv.innerHTML = `<h3>Raw Response:</h3><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    document.body.appendChild(debugDiv);
+                }
+                
+            } catch (error) {
+                console.error('❌ Error:', error);
+                statusDiv.textContent = `Error: ${error.message}`;
+                statusDiv.className = 'error';
+                countDiv.textContent = 'Failed to fetch data';
+            }
+        }
+        
+        // Start fetch on page load
+        window.onload = fetchServers;
+    </script>
+</body>
+</html>

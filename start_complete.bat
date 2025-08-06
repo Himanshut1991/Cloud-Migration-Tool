@@ -6,7 +6,7 @@ echo.
 
 echo [1/3] Starting Backend Server...
 cd /d "%~dp0\backend"
-start "Timeline Backend" cmd /k "python timeline_server.py"
+start "Complete Backend" cmd /k "C:\Program Files\Python313\python.exe complete_backend.py"
 echo Backend starting at http://localhost:5000
 echo.
 

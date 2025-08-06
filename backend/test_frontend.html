@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Export Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { 
+            background: #1890ff; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            margin: 10px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+        }
+        button:hover { background: #40a9ff; }
+        .result { 
+            margin: 10px 0; 
+            padding: 10px; 
+            border: 1px solid #ccc; 
+            border-radius: 4px; 
+            background: #f9f9f9; 
+        }
+        .error { border-color: #ff4d4f; background: #fff2f0; }
+        .success { border-color: #52c41a; background: #f6ffed; }
+    </style>
+</head>
+<body>
+    <h1>Cloud Migration Tool - Export Test</h1>
+    
+    <h2>Backend Connection Test</h2>
+    <button onclick="testBackend()">Test Backend Connection</button>
+    <div id="backend-result" class="result"></div>
+    
+    <h2>Export Tests</h2>
+    <button onclick="testExport('pdf')">📄 Test PDF Export</button>
+    <button onclick="testExport('excel')">📊 Test Excel Export</button>
+    <button onclick="testExport('word')">📝 Test Word Export</button>
+    
+    <div id="export-results"></div>
+    
+    <script>
+        const BACKEND_URL = 'http://localhost:5000';
+        
+        function log(message, isError = false) {
+            console.log(message);
+            const div = document.createElement('div');
+            div.className = 'result ' + (isError ? 'error' : 'success');
+            div.innerHTML = message;
+            document.getElementById('export-results').appendChild(div);
+        }
+        
+        async function testBackend() {
+            const resultDiv = document.getElementById('backend-result');
+            
+            try {
+                resultDiv.innerHTML = '🔄 Testing backend connection...';
+                
+                const response = await fetch(`${BACKEND_URL}/api/dashboard`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    ✅ Backend connected successfully!<br>
+                    Servers: ${data.infrastructure_summary?.servers || 0}<br>
+                    Databases: ${data.infrastructure_summary?.databases || 0}<br>
+                    File Shares: ${data.infrastructure_summary?.file_shares || 0}
+                `;
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ Backend connection failed: ${error.message}`;
+                console.error('Backend test error:', error);
+            }
+        }
+        
+        async function testExport(format) {
+            try {
+                log(`🔄 Testing ${format.toUpperCase()} export...`);
+                
+                const response = await fetch(`${BACKEND_URL}/api/export`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ format: format })
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                const result = await response.json();
+                log(`✅ ${format.toUpperCase()} export successful: ${result.filename}`, false);
+                
+                // Create download link
+                const downloadLink = document.createElement('a');
+                downloadLink.href = `${BACKEND_URL}/api/download/${result.filename}`;
+                downloadLink.textContent = `Download ${result.filename}`;
+                downloadLink.style.marginLeft = '10px';
+                downloadLink.style.color = '#1890ff';
+                
+                const lastResult = document.getElementById('export-results').lastElementChild;
+                lastResult.appendChild(downloadLink);
+                
+            } catch (error) {
+                log(`❌ ${format.toUpperCase()} export failed: ${error.message}`, true);
+                console.error(`${format} export error:`, error);
+            }
+        }
+        
+        // Auto-test backend on page load
+        window.onload = () => {
+            testBackend();
+        };
+    </script>
+</body>
+</html>

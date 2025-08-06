@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Frontend File Shares Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .debug-panel {
+            background: #f0f8ff;
+            border: 1px solid #91d5ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow: auto;
+        }
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            flex: 1;
+            background: #fafafa;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1890ff;
+        }
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+        }
+        .empty-table {
+            text-align: center;
+            color: #999;
+            padding: 40px;
+            background: #fafafa;
+        }
+        button {
+            background: #1890ff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #40a9ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Frontend File Shares Test</h1>
+        <p>This page simulates what the React FileShareInventory component does.</p>
+        
+        <div>
+            <button onclick="testFileSharesAPI()">🔄 Fetch File Shares</button>
+            <button onclick="testServersAPI()">🖥️ Fetch Servers</button>
+            <button onclick="clearAll()">🧹 Clear All</button>
+        </div>
+
+        <div id="debugOutput" class="debug-panel">Click buttons above to test API calls...</div>
+
+        <div class="stats" id="statsContainer" style="display: none;">
+            <div class="stat-card">
+                <div class="stat-value" id="totalShares">0</div>
+                <div class="stat-label">Total File Shares</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalSize">0</div>
+                <div class="stat-label">Total Size (GB)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="snapshotCount">0</div>
+                <div class="stat-label">Snapshots Required</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="hotAccessCount">0</div>
+                <div class="stat-label">Hot Access Pattern</div>
+            </div>
+        </div>
+
+        <div id="tableContainer">
+            <table id="fileSharesTable" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>Share Name</th>
+                        <th>Size (GB)</th>
+                        <th>Access Pattern</th>
+                        <th>Write Frequency</th>
+                        <th>Server ID</th>
+                        <th>Snapshot Required</th>
+                        <th>Retention (Days)</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                </tbody>
+            </table>
+            <div id="emptyMessage" class="empty-table">No data loaded yet. Click "Fetch File Shares" to load data.</div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        let fileShares = [];
+        let servers = [];
+
+        function log(message) {
+            const debugEl = document.getElementById('debugOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            debugEl.textContent += `[${timestamp}] ${message}\n`;
+            debugEl.scrollTop = debugEl.scrollHeight;
+            console.log(message);
+        }
+
+        function clearAll() {
+            document.getElementById('debugOutput').textContent = 'Cleared.\n';
+            fileShares = [];
+            servers = [];
+            updateDisplay();
+        }
+
+        async function testFileSharesAPI() {
+            log('🔄 Starting fetchFileShares...');
+            
+            try {
+                log(`📡 Making request to ${API_BASE}/file-shares`);
+                const response = await fetch(`${API_BASE}/file-shares`);
+                log(`📊 API response status: ${response.status}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                log('📋 API response data received');
+                log(`📋 Response keys: ${Object.keys(data).join(', ')}`);
+                
+                // Backend returns {file_shares: [...], total: x, timestamp: "..."} 
+                // We need to extract the file_shares array
+                if (data.file_shares && Array.isArray(data.file_shares)) {
+                    fileShares = data.file_shares;
+                    log(`✅ Found ${fileShares.length} file shares`);
+                    if (fileShares.length > 0) {
+                        log(`🔸 First file share keys: ${Object.keys(fileShares[0]).join(', ')}`);
+                        log(`🔸 First file share: ${JSON.stringify(fileShares[0], null, 2)}`);
+                    }
+                } else {
+                    log('⚠️ Unexpected data format - no file_shares array found');
+                    log(`⚠️ Actual data: ${JSON.stringify(data, null, 2)}`);
+                    fileShares = [];
+                }
+                
+                updateDisplay();
+                
+            } catch (error) {
+                log(`❌ Error fetching file shares: ${error.message}`);
+                log(`❌ Full error: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`);
+            }
+            
+            log('🏁 fetchFileShares completed');
+        }
+
+        async function testServersAPI() {
+            log('🔄 Starting fetchServers...');
+            
+            try {
+                log(`📡 Making request to ${API_BASE}/servers`);
+                const response = await fetch(`${API_BASE}/servers`);
+                log(`📊 Servers API response status: ${response.status}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                log('📋 Servers API response data received');
+                
+                // Backend returns {servers: [...], total: x, timestamp: "..."} 
+                // We need to extract the servers array
+                if (data.servers && Array.isArray(data.servers)) {
+                    servers = data.servers;
+                    log(`✅ Found ${servers.length} servers`);
+                } else {
+                    log('⚠️ Unexpected servers data format');
+                    servers = [];
+                }
+                
+            } catch (error) {
+                log(`❌ Error fetching servers: ${error.message}`);
+            }
+            
+            log('🏁 fetchServers completed');
+        }
+
+        function updateDisplay() {
+            // Calculate statistics
+            const totalShares = fileShares.length;
+            const totalSize = fileShares.reduce((sum, share) => sum + (share.total_size_gb || 0), 0);
+            const snapshotCount = fileShares.filter(share => share.snapshot_required).length;
+            const hotAccessCount = fileShares.filter(share => share.access_pattern === 'Hot').length;
+
+            log(`📊 STATS: totalShares=${totalShares}, totalSize=${totalSize}, snapshotCount=${snapshotCount}, hotAccessCount=${hotAccessCount}`);
+
+            // Update stats display
+            document.getElementById('totalShares').textContent = totalShares;
+            document.getElementById('totalSize').textContent = totalSize.toLocaleString();
+            document.getElementById('snapshotCount').textContent = snapshotCount;
+            document.getElementById('hotAccessCount').textContent = hotAccessCount;
+
+            if (totalShares > 0) {
+                document.getElementById('statsContainer').style.display = 'flex';
+                document.getElementById('fileSharesTable').style.display = 'table';
+                document.getElementById('emptyMessage').style.display = 'none';
+                
+                // Update table
+                const tbody = document.getElementById('tableBody');
+                tbody.innerHTML = '';
+                
+                fileShares.forEach(share => {
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
+                        <td>${share.share_name || 'N/A'}</td>
+                        <td>${(share.total_size_gb || 0).toLocaleString()}</td>
+                        <td>${share.access_pattern || 'N/A'}</td>
+                        <td>${share.write_frequency || 'N/A'}</td>
+                        <td>${share.server_id || 'N/A'}</td>
+                        <td>${share.snapshot_required ? 'Yes' : 'No'}</td>
+                        <td>${share.retention_days || 'N/A'}</td>
+                    `;
+                });
+            } else {
+                document.getElementById('statsContainer').style.display = 'none';
+                document.getElementById('fileSharesTable').style.display = 'none';
+                document.getElementById('emptyMessage').style.display = 'block';
+            }
+        }
+
+        // Auto-test on load
+        window.addEventListener('load', () => {
+            log('🚀 Page loaded - auto-testing File Shares API');
+            setTimeout(testFileSharesAPI, 1000);
+        });
+    </script>
+</body>
+</html>

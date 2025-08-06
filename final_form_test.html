@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Final Form Submission Test</title>
+</head>
+<body>
+    <h1>Final Form Submission Test</h1>
+    <div id="results"></div>
+    
+    <script>
+    async function testFormSubmission() {
+        const results = document.getElementById('results');
+        
+        // Test exactly what the Server form should be doing
+        const serverData = {
+            server_id: "FINAL-TEST-" + Date.now(),
+            os_type: "Windows Server 2019",
+            vcpu: 4,
+            ram: 16,
+            disk_size: 500,
+            disk_type: "SSD",
+            uptime_pattern: "24x7",
+            current_hosting: "On-Premise",
+            technology: "Web Server",
+            technology_version: "1.0"
+        };
+        
+        results.innerHTML += '<h3>Testing Server Form Submission</h3>';
+        results.innerHTML += '<p>Data: ' + JSON.stringify(serverData, null, 2) + '</p>';
+        
+        try {
+            const response = await fetch('http://127.0.0.1:5000/api/servers', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(serverData),
+            });
+            
+            results.innerHTML += '<p>Response Status: ' + response.status + '</p>';
+            results.innerHTML += '<p>Response Headers: ' + JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2) + '</p>';
+            
+            const responseText = await response.text();
+            results.innerHTML += '<p>Response Body: ' + responseText + '</p>';
+            
+            if (response.ok) {
+                results.innerHTML += '<p style="color: green;">✅ SUCCESS! Server added successfully.</p>';
+            } else {
+                results.innerHTML += '<p style="color: red;">❌ FAILED: ' + responseText + '</p>';
+            }
+            
+            // Now test GET to verify
+            const getResponse = await fetch('http://127.0.0.1:5000/api/servers');
+            if (getResponse.ok) {
+                const serversData = await getResponse.json();
+                const serverCount = serversData.servers ? serversData.servers.length : serversData.length;
+                results.innerHTML += '<p>✅ Verification: Now have ' + serverCount + ' servers total</p>';
+                
+                // Show the last few servers
+                const servers = serversData.servers || serversData;
+                const recentServers = servers.slice(-3);
+                results.innerHTML += '<p>Recent servers:</p><ul>';
+                recentServers.forEach(server => {
+                    results.innerHTML += '<li>' + server.server_id + ' (' + server.os_type + ')</li>';
+                });
+                results.innerHTML += '</ul>';
+            }
+        } catch (error) {
+            results.innerHTML += '<p style="color: red;">❌ ERROR: ' + error.message + '</p>';
+        }
+    }
+    
+    // Run the test immediately
+    testFormSubmission();
+    </script>
+</body>
+</html>

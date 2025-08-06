@@ -55,6 +55,14 @@ BusinessConstraint = models['BusinessConstraint']
 ResourceRate = models['ResourceRate']
 MigrationPlan = models['MigrationPlan']
 
+# Import export service
+try:
+    from services.export_service_new import ExportService
+    print("✅ Export service loaded successfully")
+except Exception as e:
+    print(f"⚠️  Warning: Export service failed to load: {e}")
+    ExportService = None
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
@@ -1381,6 +1389,200 @@ def debug_ai():
                 debug_info["error"] = str(e)
     
     return jsonify(debug_info)
+
+# Export endpoints
+@app.route('/api/export', methods=['POST'])
+def export_report():
+    """Export migration plan to various formats"""
+    try:
+        if not ExportService:
+            return jsonify({'error': 'Export service not available'}), 500
+            
+        data = request.get_json() or {}
+        format_type = data.get('format', 'pdf').lower()
+        
+        if format_type not in ['pdf', 'excel', 'word']:
+            return jsonify({'error': 'Invalid format. Supported formats: pdf, excel, word'}), 400
+        
+        print(f"📄 Starting {format_type.upper()} export...")
+        
+        # Initialize export service with database and models
+        export_service = ExportService(db, models)
+        
+        # Export based on format
+        if format_type == 'pdf':
+            # Use basic PDF export
+            try:
+                from reportlab.lib.pagesizes import letter
+                from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+                from reportlab.lib.styles import getSampleStyleSheet
+                from reportlab.lib import colors
+                
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                filename = f'migration_plan_{timestamp}.pdf'
+                exports_dir = os.path.join(os.path.dirname(__file__), 'exports')
+                os.makedirs(exports_dir, exist_ok=True)
+                filepath = os.path.join(exports_dir, filename)
+                
+                doc = SimpleDocTemplate(filepath, pagesize=letter)
+                styles = getSampleStyleSheet()
+                story = []
+                
+                # Title
+                story.append(Paragraph("Cloud Migration Assessment Report", styles['Title']))
+                story.append(Spacer(1, 20))
+                story.append(Paragraph(f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", styles['Normal']))
+                story.append(Spacer(1, 20))
+                
+                # Get basic data
+                Server = models.get('Server')
+                Database = models.get('Database') 
+                FileShare = models.get('FileShare')
+                
+                servers_count = Server.query.count() if Server else 0
+                databases_count = Database.query.count() if Database else 0
+                file_shares_count = FileShare.query.count() if FileShare else 0
+                
+                # Summary
+                story.append(Paragraph("Executive Summary", styles['Heading1']))
+                story.append(Paragraph(f"This assessment covers {servers_count} servers, {databases_count} databases, and {file_shares_count} file shares.", styles['Normal']))
+                story.append(Spacer(1, 20))
+                
+                # Infrastructure table
+                data = [['Component', 'Count', 'Priority']]
+                data.append(['Servers', str(servers_count), 'High'])
+                data.append(['Databases', str(databases_count), 'Critical'])
+                data.append(['File Shares', str(file_shares_count), 'Medium'])
+                
+                table = Table(data)
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 12),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black)
+                ]))
+                story.append(table)
+                
+                doc.build(story)
+                
+            except Exception as pdf_error:
+                print(f"❌ Simple PDF creation failed: {pdf_error}")
+                # Fall back to original exporter
+                filepath = export_service.export_to_pdf()
+        elif format_type == 'excel':
+            # Use simple Excel exporter for now to avoid issues
+            try:
+                from services.simple_excel_exporter import SimpleExcelExporter
+                excel_exporter = SimpleExcelExporter(db, models)
+                filepath = excel_exporter.export_to_excel()
+            except Exception as excel_error:
+                print(f"❌ Simple Excel exporter failed: {excel_error}")
+                # Fall back to original exporter
+                filepath = export_service.export_to_excel()
+        elif format_type == 'word':
+            # Use simple Word exporter for reliability
+            try:
+                from docx import Document
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                filename = f'migration_plan_{timestamp}.docx'
+                exports_dir = os.path.join(os.path.dirname(__file__), 'exports')
+                os.makedirs(exports_dir, exist_ok=True)
+                filepath = os.path.join(exports_dir, filename)
+                
+                doc = Document()
+                doc.add_heading('Cloud Migration Assessment Report', 0)
+                doc.add_paragraph(f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}")
+                
+                # Get basic counts
+                Server = models.get('Server')
+                Database = models.get('Database')
+                FileShare = models.get('FileShare')
+                
+                servers_count = Server.query.count() if Server else 0
+                databases_count = Database.query.count() if Database else 0
+                file_shares_count = FileShare.query.count() if FileShare else 0
+                
+                doc.add_heading('Executive Summary', level=1)
+                summary_para = doc.add_paragraph()
+                summary_para.add_run(f"This assessment covers {servers_count} servers, ")
+                summary_para.add_run(f"{databases_count} databases, and {file_shares_count} file shares.")
+                
+                doc.add_heading('Infrastructure Overview', level=1)
+                table = doc.add_table(rows=4, cols=2)
+                table.style = 'Table Grid'
+                
+                table.rows[0].cells[0].text = 'Component'
+                table.rows[0].cells[1].text = 'Count'
+                table.rows[1].cells[0].text = 'Servers'
+                table.rows[1].cells[1].text = str(servers_count)
+                table.rows[2].cells[0].text = 'Databases'
+                table.rows[2].cells[1].text = str(databases_count)
+                table.rows[3].cells[0].text = 'File Shares'
+                table.rows[3].cells[1].text = str(file_shares_count)
+                
+                doc.save(filepath)
+                filepath = filepath
+                
+            except Exception as word_error:
+                print(f"❌ Simple Word creation failed: {word_error}")
+                # Fall back to original exporter
+                filepath = export_service.export_to_word()
+        
+        # Get file info
+        filename = os.path.basename(filepath)
+        file_size = os.path.getsize(filepath)
+        timestamp = datetime.now().isoformat()
+        
+        print(f"✅ {format_type.upper()} export completed: {filename}")
+        
+        return jsonify({
+            'message': f'{format_type.upper()} export completed successfully',
+            'format': format_type,
+            'filename': filename,
+            'filepath': filepath,
+            'file_size': file_size,
+            'timestamp': timestamp
+        })
+        
+    except Exception as e:
+        print(f"❌ Export failed: {str(e)}")
+        return jsonify({'error': f'Export failed: {str(e)}'}), 500
+
+@app.route('/api/download/<filename>', methods=['GET'])
+def download_file(filename):
+    """Download exported file"""
+    try:
+        # Security: Only allow downloading files from exports directory
+        exports_dir = os.path.join(os.path.dirname(__file__), 'exports')
+        filepath = os.path.join(exports_dir, filename)
+        
+        print(f"🔍 Looking for file: {filepath}")
+        print(f"📁 Exports directory: {exports_dir}")
+        print(f"📄 File exists: {os.path.exists(filepath)}")
+        
+        # Validate file exists and is in exports directory  
+        if not os.path.exists(filepath):
+            print(f"❌ File not found: {filepath}")
+            return jsonify({'error': f'File not found: {filename}'}), 404
+            
+        # Additional security check
+        if not os.path.commonpath([os.path.abspath(exports_dir), os.path.abspath(filepath)]) == os.path.abspath(exports_dir):
+            print(f"❌ Security violation: File outside exports directory")
+            return jsonify({'error': 'Access denied'}), 403
+            
+        from flask import send_file
+        print(f"✅ Sending file: {filename}")
+        return send_file(filepath, as_attachment=True, download_name=filename)
+        
+    except Exception as e:
+        print(f"❌ Download failed: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Download failed: {str(e)}'}), 500
 
 if __name__ == '__main__':
     with app.app_context():

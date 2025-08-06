@@ -27,7 +27,7 @@ const ResourceRates: React.FC = () => {
   const [form] = Form.useForm();
   const [previewCost, setPreviewCost] = useState<number>(0);
 
-  const API_BASE_URL = 'http://localhost:5000/api';
+  const API_BASE_URL = 'http://127.0.0.1:5000/api';
 
   // Predefined roles with typical rates
   const predefinedRoles = [
@@ -45,15 +45,66 @@ const ResourceRates: React.FC = () => {
 
   // Fetch resource rates
   const fetchResourceRates = async () => {
+    console.log('🔄 ResourceRates: Starting to fetch resource rates...');
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/resource-rates`);
-      setResourceRates(response.data);
+      // Try multiple URLs to see which one works
+      const urls = [
+        'http://127.0.0.1:5000/api/resource-rates',
+        'http://localhost:5000/api/resource-rates',
+        `${window.location.protocol}//${window.location.hostname}:5000/api/resource-rates`
+      ];
+      
+      let response: Response | null = null;
+      let data: any = null;
+      
+      for (const url of urls) {
+        try {
+          console.log(`🌐 ResourceRates: Trying URL: ${url}`);
+          const res = await fetch(url);
+          console.log(`📡 ResourceRates: Response status for ${url}: ${res.status}`);
+          
+          if (res.ok) {
+            data = await res.json();
+            console.log(`✅ ResourceRates: Success with ${url}:`, data);
+            response = res;
+            break;
+          }
+        } catch (urlError) {
+          console.log(`❌ ResourceRates: Failed with ${url}:`, (urlError as Error).message);
+          continue;
+        }
+      }
+      
+      if (!response || !response.ok || !data) {
+        throw new Error('All URLs failed');
+      }
+      
+      // Backend returns {resource_rates: [...]} or possibly just [...]
+      let resourceRates: ResourceRate[] = [];
+      if (data.resource_rates && Array.isArray(data.resource_rates)) {
+        resourceRates = data.resource_rates;
+        console.log(`✅ ResourceRates: Found resource_rates array with ${resourceRates.length} items`);
+      } else if (Array.isArray(data)) {
+        resourceRates = data;
+        console.log(`✅ ResourceRates: Data is direct array with ${resourceRates.length} items`);
+      } else {
+        console.warn('⚠️ ResourceRates: Unexpected data format:', data);
+        console.warn('⚠️ ResourceRates: Data type:', typeof data);
+        console.warn('⚠️ ResourceRates: Data keys:', Object.keys(data));
+        resourceRates = [];
+      }
+      
+      console.log(`🎯 ResourceRates: Setting ${resourceRates.length} resource rates to state`);
+      setResourceRates(resourceRates);
+      
     } catch (error) {
-      message.error('Failed to fetch resource rates');
-      console.error('Error fetching resource rates:', error);
+      console.error('❌ ResourceRates: Error:', error);
+      message.error(`Failed to fetch resource rates: ${(error as Error).message}`);
+      setResourceRates([]);
     } finally {
       setLoading(false);
+      console.log('🏁 ResourceRates: Fetch completed');
     }
   };
 
@@ -78,26 +129,31 @@ const ResourceRates: React.FC = () => {
 
   // Handle create/update resource rate
   const handleSubmit = async (values: ResourceRate) => {
-    console.log('Submitting values:', values);
-    console.log('Editing rate:', editingRate);
+    console.log('🔄 ResourceRates: Form submission started');
+    console.log('📝 ResourceRates: Form values:', values);
+    console.log('✏️ ResourceRates: Editing rate:', editingRate);
     
     try {
       if (editingRate?.id) {
-        console.log('Updating resource rate:', editingRate.id);
-        await axios.put(`${API_BASE_URL}/resource-rates/${editingRate.id}`, values);
+        console.log(`🌐 ResourceRates: Updating resource rate ${editingRate.id}`);
+        const response = await axios.put(`${API_BASE_URL}/resource-rates/${editingRate.id}`, values);
+        console.log('✅ ResourceRates: Update successful:', response.data);
         message.success('Resource rate updated successfully');
       } else {
-        console.log('Creating new resource rate');
-        await axios.post(`${API_BASE_URL}/resource-rates`, values);
+        console.log('🌐 ResourceRates: Creating new resource rate');
+        const response = await axios.post(`${API_BASE_URL}/resource-rates`, values);
+        console.log('✅ ResourceRates: Creation successful:', response.data);
         message.success('Resource rate created successfully');
       }
       setModalVisible(false);
       setEditingRate(null);
       form.resetFields();
       await fetchResourceRates(); // Ensure data refreshes
-    } catch (error) {
-      message.error(`Failed to ${editingRate?.id ? 'update' : 'create'} resource rate`);
-      console.error('Error saving resource rate:', error);
+    } catch (error: any) {
+      console.error('❌ ResourceRates: Error saving resource rate:', error);
+      console.error('❌ ResourceRates: Error response:', error.response?.data);
+      console.error('❌ ResourceRates: Error status:', error.response?.status);
+      message.error(`Failed to ${editingRate?.id ? 'update' : 'create'} resource rate: ${error.response?.data?.error || error.message}`);
     }
   };
 
@@ -125,7 +181,7 @@ const ResourceRates: React.FC = () => {
   const handleEdit = (rate: ResourceRate) => {
     setEditingRate(rate);
     form.setFieldsValue(rate);
-    setPreviewCost(rate.duration_weeks * rate.hours_per_week * rate.rate_per_hour);
+    setPreviewCost((rate.duration_weeks || 0) * (rate.hours_per_week || 0) * (rate.rate_per_hour || 0));
     setModalVisible(true);
   };
 
@@ -135,6 +191,7 @@ const ResourceRates: React.FC = () => {
     form.resetFields();
     // Set initial values when adding
     form.setFieldsValue({
+      role: '',
       duration_weeks: 12,
       hours_per_week: 40,
       rate_per_hour: 125
@@ -159,45 +216,30 @@ const ResourceRates: React.FC = () => {
       dataIndex: 'role',
       key: 'role',
       sorter: (a: ResourceRate, b: ResourceRate) => a.role.localeCompare(b.role),
-      render: (role: string) => {
-        const predefinedRole = predefinedRoles.find(r => r.role === role);
-        return (
-          <div>
-            <div style={{ fontWeight: 500 }}>{role}</div>
-            {predefinedRole && (
-              <Text type="secondary" style={{ fontSize: '12px' }}>
-                {predefinedRole.description}
-              </Text>
-            )}
-          </div>
-        );
-      }
     },
     {
       title: 'Duration (Weeks)',
       dataIndex: 'duration_weeks',
       key: 'duration_weeks',
       sorter: (a: ResourceRate, b: ResourceRate) => a.duration_weeks - b.duration_weeks,
-      render: (weeks: number) => `${weeks} weeks`,
     },
     {
       title: 'Hours/Week',
       dataIndex: 'hours_per_week',
       key: 'hours_per_week',
       sorter: (a: ResourceRate, b: ResourceRate) => a.hours_per_week - b.hours_per_week,
-      render: (hours: number) => `${hours} hrs`,
     },
     {
-      title: 'Rate/Hour',
+      title: 'Rate/Hour ($)',
       dataIndex: 'rate_per_hour',
       key: 'rate_per_hour',
       sorter: (a: ResourceRate, b: ResourceRate) => a.rate_per_hour - b.rate_per_hour,
-      render: (rate: number) => `$${rate}`,
+      render: (rate: number) => `$${rate.toFixed(2)}`,
     },
     {
-      title: 'Total Cost',
+      title: 'Total Cost ($)',
       key: 'total_cost',
-      render: (_: any, record: ResourceRate) => {
+      render: (record: ResourceRate) => {
         const total = record.duration_weeks * record.hours_per_week * record.rate_per_hour;
         return `$${total.toLocaleString()}`;
       },
@@ -236,11 +278,12 @@ const ResourceRates: React.FC = () => {
 
   // Calculate statistics
   const totalRoles = resourceRates.length;
-  const totalCost = resourceRates.reduce((sum, rate) => 
+  const avgRate = resourceRates.length > 0 ? 
+    resourceRates.reduce((sum, rate) => sum + rate.rate_per_hour, 0) / resourceRates.length : 0;
+  const maxRate = resourceRates.length > 0 ? 
+    Math.max(...resourceRates.map(rate => rate.rate_per_hour)) : 0;
+  const totalProjectCost = resourceRates.reduce((sum, rate) => 
     sum + (rate.duration_weeks * rate.hours_per_week * rate.rate_per_hour), 0);
-  const totalHours = resourceRates.reduce((sum, rate) => 
-    sum + (rate.duration_weeks * rate.hours_per_week), 0);
-  const avgRate = totalHours > 0 ? totalCost / totalHours : 0;
 
   return (
     <div>
@@ -258,30 +301,30 @@ const ResourceRates: React.FC = () => {
         <Col span={6}>
           <Card>
             <Statistic
-              title="Total Cost"
-              value={totalCost}
-              prefix={<DollarOutlined />}
-              formatter={(value) => `$${Number(value).toLocaleString()}`}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="Total Hours"
-              value={totalHours}
-              formatter={(value) => `${Number(value).toLocaleString()}`}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
               title="Average Rate"
               value={avgRate}
-              prefix="$"
-              precision={0}
-              suffix="/hr"
+              prefix={<DollarOutlined />}
+              formatter={(value) => `$${Number(value).toFixed(2)}`}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Max Rate"
+              value={maxRate}
+              prefix={<DollarOutlined />}
+              formatter={(value) => `$${Number(value).toFixed(2)}`}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Total Project Cost"
+              value={totalProjectCost}
+              prefix={<DollarOutlined />}
+              formatter={(value) => `$${Number(value).toLocaleString()}`}
             />
           </Card>
         </Col>

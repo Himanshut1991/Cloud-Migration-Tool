@@ -7,6 +7,10 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
+@app.route('/', methods=['GET'])
+def root():
+    return jsonify({'message': 'Test backend is running', 'status': 'ok'})
+
 @app.route('/api/health', methods=['GET'])
 def health():
     return jsonify({"status": "healthy", "message": "Test server working"})

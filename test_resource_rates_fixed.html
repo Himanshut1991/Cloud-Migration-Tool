@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Resource Rates - Fixed</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; border: 1px solid #bee5eb; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Resource Rates - Fixed Test Page</h1>
+    <p><strong>Testing Date:</strong> <span id="testDate"></span></p>
+    
+    <div class="test-section">
+        <h2>🌐 Backend API Test</h2>
+        <button onclick="testAPI()">Test Resource Rates API</button>
+        <div id="apiResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🎯 Frontend Navigation Links</h2>
+        <p>Click these links to test the Resource Rates page in the frontend:</p>
+        <a href="http://localhost:5173" target="_blank" style="margin-right: 15px;">
+            <button>Open Frontend Home</button>
+        </a>
+        <a href="http://localhost:5173/#/configuration/resource-rates" target="_blank">
+            <button>Direct Link to Resource Rates</button>
+        </a>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Expected Data Schema</h2>
+        <p>The Resource Rates should now display these fields:</p>
+        <ul>
+            <li><strong>Role:</strong> e.g., "Migration Engineer", "Cloud Architect"</li>
+            <li><strong>Duration (Weeks):</strong> e.g., 8, 12 weeks</li>
+            <li><strong>Hours/Week:</strong> e.g., 40, 20 hours</li>
+            <li><strong>Rate/Hour ($):</strong> e.g., $145.00, $175.00</li>
+            <li><strong>Total Cost ($):</strong> Calculated: duration × hours × rate</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>✅ Fixed Issues</h2>
+        <ul>
+            <li>✅ Updated interface to match DB schema (role, duration_weeks, hours_per_week, rate_per_hour)</li>
+            <li>✅ Fixed table columns to display correct fields</li>
+            <li>✅ Updated statistics cards to show meaningful data</li>
+            <li>✅ Fixed form handling for add/edit operations</li>
+            <li>✅ Resolved all TypeScript compilation errors</li>
+            <li>✅ Added Total Cost calculation column</li>
+        </ul>
+    </div>
+
+    <script>
+        // Set current date
+        document.getElementById('testDate').textContent = new Date().toLocaleString();
+
+        async function testAPI() {
+            const resultDiv = document.getElementById('apiResult');
+            resultDiv.innerHTML = '<div class="status info">🔄 Testing API...</div>';
+
+            try {
+                console.log('🔄 Testing Resource Rates API...');
+                
+                // Test different URLs
+                const urls = [
+                    'http://localhost:5000/api/resource-rates',
+                    'http://127.0.0.1:5000/api/resource-rates'
+                ];
+
+                let success = false;
+                let finalData = null;
+
+                for (const url of urls) {
+                    try {
+                        console.log(`🌐 Trying: ${url}`);
+                        const response = await fetch(url);
+                        console.log(`📡 Response status: ${response.status}`);
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            console.log(`✅ Success:`, data);
+                            finalData = data;
+                            success = true;
+                            break;
+                        }
+                    } catch (urlError) {
+                        console.log(`❌ Failed: ${url}`, urlError.message);
+                        continue;
+                    }
+                }
+
+                if (success && finalData) {
+                    let resourceRates = [];
+                    
+                    // Handle different response formats
+                    if (finalData.resource_rates && Array.isArray(finalData.resource_rates)) {
+                        resourceRates = finalData.resource_rates;
+                    } else if (Array.isArray(finalData)) {
+                        resourceRates = finalData;
+                    }
+
+                    resultDiv.innerHTML = `
+                        <div class="status success">✅ API Test Successful!</div>
+                        <p><strong>Found ${resourceRates.length} resource rates</strong></p>
+                        <pre>${JSON.stringify(finalData, null, 2)}</pre>
+                        
+                        <h4>📋 Sample Resource Rate Fields:</h4>
+                        ${resourceRates.length > 0 ? `
+                        <ul>
+                            <li><strong>ID:</strong> ${resourceRates[0].id}</li>
+                            <li><strong>Role:</strong> ${resourceRates[0].role}</li>
+                            <li><strong>Duration (Weeks):</strong> ${resourceRates[0].duration_weeks}</li>
+                            <li><strong>Hours/Week:</strong> ${resourceRates[0].hours_per_week}</li>
+                            <li><strong>Rate/Hour:</strong> $${resourceRates[0].rate_per_hour}</li>
+                            <li><strong>Total Cost:</strong> $${(resourceRates[0].duration_weeks * resourceRates[0].hours_per_week * resourceRates[0].rate_per_hour).toLocaleString()}</li>
+                        </ul>
+                        ` : '<p>No sample data to display</p>'}
+                    `;
+                } else {
+                    throw new Error('All API endpoints failed');
+                }
+
+            } catch (error) {
+                console.error('❌ API Test Failed:', error);
+                resultDiv.innerHTML = `
+                    <div class="status error">❌ API Test Failed</div>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                    <p><strong>Solutions:</strong></p>
+                    <ul>
+                        <li>Make sure the backend server is running on port 5000</li>
+                        <li>Check if the database has resource rates data</li>
+                        <li>Verify CORS is properly configured</li>
+                    </ul>
+                `;
+            }
+        }
+
+        // Auto-test API on page load
+        window.addEventListener('load', () => {
+            setTimeout(testAPI, 1000);
+        });
+    </script>
+</body>
+</html>

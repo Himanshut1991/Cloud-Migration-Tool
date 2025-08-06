@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Export Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        button { margin: 5px; padding: 10px 20px; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Backend Export Test</h1>
+    
+    <div class="section">
+        <h3>Test All API Endpoints</h3>
+        <button onclick="testHealth()">Health</button>
+        <button onclick="testDashboard()">Dashboard</button>
+        <button onclick="testServers()">Servers</button>
+        <button onclick="testDatabases()">Databases</button>
+        <button onclick="testFileShares()">File Shares</button>
+        <button onclick="testCostEstimation()">Cost Estimation</button>
+        <button onclick="testMigrationStrategy()">Migration Strategy</button>
+        <button onclick="testAiStatus()">AI Status</button>
+        <div id="endpointResults"></div>
+    </div>
+    
+    <div class="section">
+        <h3>Test Exports</h3>
+        <button onclick="exportReport('pdf')">Export PDF</button>
+        <button onclick="exportReport('excel')">Export Excel</button>
+        <button onclick="exportReport('word')">Export Word</button>
+        <div id="exportResults"></div>
+    </div>
+    
+    <div class="section">
+        <h3>Available Downloads</h3>
+        <button onclick="listExports()">List Files</button>
+        <div id="downloadList"></div>
+    </div>
+
+    <script>
+        async function testHealth() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                document.getElementById('endpointResults').innerHTML = 
+                    `<div class="success">Health: ${data.status} - ${data.message}</div>`;
+            } catch (error) {
+                document.getElementById('endpointResults').innerHTML = 
+                    `<div class="error">Health Error: ${error}</div>`;
+            }
+        }
+        
+        async function testDashboard() {
+            try {
+                const response = await fetch('/api/dashboard');
+                const data = await response.json();
+                document.getElementById('endpointResults').innerHTML = 
+                    `<div class="success">Dashboard: ${data.infrastructure_summary.servers} servers, Cost: $${data.cost_estimation.monthly_cost}/month</div>`;
+            } catch (error) {
+                document.getElementById('endpointResults').innerHTML = 
+                    `<div class="error">Dashboard Error: ${error}</div>`;
+            }
+        }
+        
+        async function testServers() {
+            try {
+                const response = await fetch('/api/servers');
+                const data = await response.json();
+                document.getElementById('endpointResults').innerHTML = 
+                    `<div class="success">Servers: ${data.total} total, ${data.servers.length} loaded</div>`;
+            } catch (error) {
+                document.getElementById('endpointResults').innerHTML = 
+                    `<div class="error">Servers Error: ${error}</div>`;
+            }
+        }
+        
+        async function testDatabases() {
+            try {
+                const response = await fetch('/api/databases');
+                const data = await response.json();
+                document.getElementById('endpointResults').innerHTML = 
+                    `<div class="success">Databases: ${data.total} total, ${data.databases.length} loaded</div>`;
+            } catch (error) {
+                document.getElementById('endpointResults').innerHTML = 
+                    `<div class="error">Databases Error: ${error}</div>`;
+            }
+        }
+        
+        async function testFileShares() {
+            try {
+                const response = await fetch('/api/file-shares');
+                const data = await response.json();
+                document.getElementById('endpointResults').innerHTML = 
+                    `<div class="success">File Shares: ${data.total} total, ${data.file_shares.length} loaded</div>`;
+            } catch (error) {
+                document.getElementById('endpointResults').innerHTML = 
+                    `<div class="error">File Shares Error: ${error}</div>`;
+            }
+        }
+        
+        async function testCostEstimation() {
+            try {
+                const response = await fetch('/api/cost-estimation');
+                const data = await response.json();
+                document.getElementById('endpointResults').innerHTML = 
+                    `<div class="success">Cost Estimation: $${data.summary.monthly_cost}/month, $${data.summary.annual_cost}/year</div>`;
+            } catch (error) {
+                document.getElementById('endpointResults').innerHTML = 
+                    `<div class="error">Cost Estimation Error: ${error}</div>`;
+            }
+        }
+        
+        async function testMigrationStrategy() {
+            try {
+                const response = await fetch('/api/migration-strategy');
+                const data = await response.json();
+                document.getElementById('endpointResults').innerHTML = 
+                    `<div class="success">Migration Strategy: ${data.strategy_overview.complexity_level} complexity, ${data.strategy_overview.estimated_duration_weeks} weeks</div>`;
+            } catch (error) {
+                document.getElementById('endpointResults').innerHTML = 
+                    `<div class="error">Migration Strategy Error: ${error}</div>`;
+            }
+        }
+        
+        async function testAiStatus() {
+            try {
+                const response = await fetch('/api/ai-status');
+                const data = await response.json();
+                document.getElementById('endpointResults').innerHTML = 
+                    `<div class="success">AI Status: ${data.service_status} (fallback: ${data.fallback_mode})</div>`;
+            } catch (error) {
+                document.getElementById('endpointResults').innerHTML = 
+                    `<div class="error">AI Status Error: ${error}</div>`;
+            }
+        }
+        
+        async function exportReport(format) {
+            try {
+                document.getElementById('exportResults').innerHTML = 
+                    `<div>Generating ${format} report...</div>`;
+                    
+                const response = await fetch('/api/export', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ format: format })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    document.getElementById('exportResults').innerHTML = 
+                        `<div class="success">✅ ${format.toUpperCase()} Export: ${data.filename} 
+                        <br><a href="${data.download_url}" download>Download ${data.filename}</a></div>`;
+                } else {
+                    document.getElementById('exportResults').innerHTML = 
+                        `<div class="error">❌ Export Error: ${data.error}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('exportResults').innerHTML = 
+                    `<div class="error">❌ Export Error: ${error}</div>`;
+            }
+        }
+        
+        async function listExports() {
+            try {
+                const response = await fetch('/api/exports');
+                const data = await response.json();
+                
+                if (data.files && data.files.length > 0) {
+                    let html = '<h4>Available Files:</h4><ul>';
+                    data.files.forEach(file => {
+                        html += `<li><a href="${file.download_url}" download>${file.filename}</a> 
+                                (${file.size} bytes, created: ${new Date(file.created).toLocaleString()})</li>`;
+                    });
+                    html += '</ul>';
+                    document.getElementById('downloadList').innerHTML = html;
+                } else {
+                    document.getElementById('downloadList').innerHTML = '<div>No exported files found.</div>';
+                }
+            } catch (error) {
+                document.getElementById('downloadList').innerHTML = 
+                    `<div class="error">List Error: ${error}</div>`;
+            }
+        }
+        
+        // Auto-test on load
+        window.onload = function() {
+            testHealth();
+            setTimeout(() => {
+                testDashboard();
+                testServers(); 
+                testDatabases();
+                testFileShares();
+                testCostEstimation();
+                testMigrationStrategy();
+                testAiStatus();
+            }, 500);
+        };
+    </script>
+</body>
+</html>
