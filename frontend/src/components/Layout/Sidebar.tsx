@@ -16,6 +16,7 @@ import {
   ExportOutlined,
   ScheduleOutlined,
   RocketOutlined,
+  BugOutlined,
 } from '@ant-design/icons';
 
 const { Sider } = Layout;
@@ -105,6 +106,18 @@ const Sidebar: React.FC = () => {
           key: '/reports/export',
           icon: <ExportOutlined />,
           label: <Link to="/reports/export">Export Reports</Link>,
+        },
+      ],
+    },
+    {
+      key: 'debug',
+      icon: <BugOutlined />,
+      label: 'Debug',
+      children: [
+        {
+          key: '/debug/api-test',
+          icon: <BugOutlined />,
+          label: <Link to="/debug/api-test">API Test</Link>,
         },
       ],
     },

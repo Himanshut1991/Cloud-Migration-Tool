@@ -3,6 +3,10 @@ import json
 import logging
 import os
 from typing import Dict, List, Any
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 class AIRecommendationService:
     """AI-powered recommendation service using AWS Bedrock"""
@@ -35,18 +39,16 @@ class AIRecommendationService:
         if not self.bedrock_client:
             return False
         
-        # List of models to try in order of preference
+        # List of models to try in order of user preference
         models_to_try = [
-            "anthropic.claude-3-haiku-20240307-v1:0",  # More likely to be enabled by default
-            "anthropic.claude-3-5-sonnet-20240620-v1:0",  # Newer Sonnet
-            "anthropic.claude-3-sonnet-20240229-v1:0",  # Original Sonnet
-            "amazon.titan-text-express-v1",  # Amazon's own model
-            "amazon.nova-lite-v1:0"  # Newest Amazon model
+            "anthropic.claude-3-5-sonnet-20240620-v1:0",  # 1. Claude 3.5 Sonnet
+            "anthropic.claude-3-sonnet-20240229-v1:0",    # 2. Claude 3 Sonnet
+            "amazon.titan-text-express-v1"               # 3. Titan Text G1 - Express
         ]
         
         for model_id in models_to_try:
             try:
-                self.logger.info(f"Testing model: {model_id}")
+                self.logger.info(f"🧪 Testing model: {model_id}")
                 
                 if "anthropic" in model_id:
                     # Anthropic models use the messages format
@@ -64,31 +66,24 @@ class AIRecommendationService:
                             "temperature": 0.1
                         }
                     }
-                elif "nova" in model_id:
-                    # Nova models use messages format
-                    test_body = {
-                        "messages": [{"role": "user", "content": "test"}],
-                        "inferenceConfig": {"maxTokens": 10}
-                    }
                 else:
                     continue
                 
-                self.bedrock_client.invoke_model(
+                response = self.bedrock_client.invoke_model(
                     modelId=model_id,
                     body=json.dumps(test_body)
                 )
                 
-                # If successful, update our model_id and return
+                self.logger.info(f"✅ Model {model_id} is working!")
                 self.model_id = model_id
-                self.logger.info(f"Bedrock connection successful with model: {model_id}")
                 return True
                 
             except Exception as e:
-                self.logger.warning(f"Model {model_id} failed: {e}")
+                self.logger.warning(f"❌ Model {model_id} failed: {e}")
                 continue
         
         # If all models failed
-        self.logger.warning("No Bedrock models are accessible. Models may need to be enabled in AWS console.")
+        self.logger.error("❌ No Bedrock models are accessible. Models may need to be enabled in AWS console.")
         self.bedrock_client = None
         return False
     
@@ -135,7 +130,14 @@ class AIRecommendationService:
         
         try:
             response = self._call_bedrock(prompt)
-            return self._parse_ai_response(response, 'server')
+            result = self._parse_ai_response(response, 'server')
+            
+            # Mark as AI-generated response
+            if result and not result.get('fallback_used'):
+                result['fallback_used'] = False
+                result['ai_model'] = self.model_id
+            
+            return result
         except Exception as e:
             self.logger.error(f"AI recommendation failed for server: {e}")
             return self._fallback_server_recommendation(server_specs)
@@ -334,6 +336,10 @@ class AIRecommendationService:
             if not result.get('recommendations'):
                 return self._fallback_cost_optimization(inventory_data)
                 
+            # Mark as AI-generated response
+            result['fallback_used'] = False
+            result['ai_model'] = self.model_id
+            
             return result
             
         except Exception as e:
@@ -473,7 +479,9 @@ class AIRecommendationService:
         return {
             "recommended_instance": instance,
             "reasoning": "Basic sizing based on vCPU and RAM requirements",
-            "confidence_level": "medium"
+            "confidence_level": "medium",
+            "fallback_used": True,
+            "fallback_reason": "AI service not available - using rule-based recommendation"
         }
     
     def _fallback_database_recommendation(self, db_specs: Dict[str, Any]) -> Dict[str, Any]:
@@ -540,5 +548,7 @@ class AIRecommendationService:
             "expected_savings": {
                 "monthly_percentage": 25,
                 "annual_amount": max(10000, (servers_count + databases_count) * 2000)
-            }
+            },
+            "fallback_used": True,
+            "fallback_reason": "AI service not available - using rule-based recommendations"
         }

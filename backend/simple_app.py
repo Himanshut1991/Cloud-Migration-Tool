@@ -7,14 +7,30 @@ import pandas as pd
 import json
 from datetime import datetime, timedelta
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+    print("✅ Environment variables loaded from .env")
+except ImportError:
+    print("⚠️  python-dotenv not available, using system environment variables")
+except Exception as e:
+    print(f"⚠️  Error loading .env file: {e}")
+
 # Import AI service (with error handling)
 ai_service = None
+ai_service_error = None
 try:
+    print("🚀 Loading AI service...")
     from services.ai_recommendations import AIRecommendationService
+    print("🤖 Initializing AI service...")
     ai_service = AIRecommendationService()
-    print("AI service initialized successfully")
+    print("✅ AI service initialized successfully")
 except Exception as e:
-    print(f"Warning: AI service initialization failed: {e}")
+    ai_service_error = str(e)
+    print(f"❌ Warning: AI service initialization failed: {e}")
+    print(f"   Error type: {type(e)}")
+    print("   🔧 Application will continue without AI features")
     ai_service = None
 
 app = Flask(__name__)
@@ -254,7 +270,7 @@ def get_servers():
             'current_hosting': s.current_hosting,
             'technology': s.technology,
             'technology_version': s.technology_version,
-            'created_at': s.created_at.isoformat()
+            'created_at': s.created_at.isoformat() if s.created_at else datetime.utcnow().isoformat()
         } for s in servers])
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -494,7 +510,7 @@ def get_databases():
             'write_frequency': d.write_frequency,
             'downtime_tolerance': d.downtime_tolerance,
             'real_time_sync': d.real_time_sync,
-            'created_at': d.created_at.isoformat()
+            'created_at': d.created_at.isoformat() if d.created_at else datetime.utcnow().isoformat()
         } for d in databases])
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -661,7 +677,7 @@ def get_file_shares():
             'write_frequency': f.write_frequency,
             'downtime_tolerance': f.downtime_tolerance,
             'real_time_sync': f.real_time_sync,
-            'created_at': f.created_at.isoformat()
+            'created_at': f.created_at.isoformat() if f.created_at else datetime.utcnow().isoformat()
         } for f in file_shares])
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -916,7 +932,7 @@ def get_cost_estimation():
                     
                     # Prepare data for AI analysis
                     inventory_data = {
-                        'servers': [{'id': s.server_id, 'os': s.os_type, 'environment': s.environment} for s in servers],
+                        'servers': [{'id': s.server_id, 'os': s.os_type, 'hosting': s.current_hosting} for s in servers],
                         'databases': [{'name': d.db_name, 'type': d.db_type, 'size_gb': d.size_gb} for d in databases],
                         'file_shares': [{'name': f.share_name, 'size_gb': f.total_size_gb} for f in file_shares],
                         'total_monthly_cost': total_monthly,
@@ -945,7 +961,8 @@ def get_cost_estimation():
                                     "recommendations": ai_recommendations.get('recommendations', []),
                                     "fallback_used": False,
                                     "ai_available": True,
-                                    "ai_status": f"✅ AWS Bedrock Active - Claude 3.5 Sonnet",
+                                    "ai_status": f"✅ AWS Bedrock Active - {ai_recommendations.get('ai_model', 'Claude')}",
+                                    "ai_model": ai_recommendations.get('ai_model', getattr(ai_service, 'model_id', 'Unknown')),
                                     "cost_optimization_tips": ai_recommendations.get('cost_optimization_tips', [])
                                 }
                             else:
@@ -1056,14 +1073,84 @@ def get_ai_status():
         }
     })
 
-@app.route('/api/migration-strategy', methods=['POST'])
+@app.route('/api/migration-strategy', methods=['GET', 'POST'])
 def get_migration_strategy():
-    """Get migration strategy analysis"""
+    """Get migration strategy analysis with AI-powered server recommendations"""
     try:
         # Get data from database using SQLAlchemy
-        servers_count = Server.query.count()
-        databases_count = Database.query.count()
-        file_shares_count = FileShare.query.count()
+        servers = Server.query.all()
+        databases = Database.query.all()
+        file_shares = FileShare.query.all()
+        
+        servers_count = len(servers)
+        databases_count = len(databases)
+        file_shares_count = len(file_shares)
+        
+        # Get AI-powered server recommendations
+        server_recommendations = []
+        
+        if ai_service and hasattr(ai_service, 'bedrock_client') and ai_service.bedrock_client:
+            print("🤖 Generating AI-powered server recommendations...")
+            
+            try:
+                for server in servers[:10]:  # Limit to first 10 servers for performance
+                    server_specs = {
+                        'server_id': server.server_id,
+                        'os_type': server.os_type,
+                        'vcpu': server.vcpu or 2,
+                        'ram': server.ram or 4,
+                        'disk_size': server.disk_size or 100,
+                        'disk_type': server.disk_type or 'SSD',
+                        'uptime_pattern': server.uptime_pattern or 'Business Hours',
+                        'current_hosting': server.current_hosting or 'On-Premises',
+                        'technology': server.technology or 'General'
+                    }
+                    
+                    recommendation = ai_service.get_server_recommendation(server_specs)
+                    
+                    if recommendation:
+                        server_recommendations.append({
+                            'server_id': server.server_id,
+                            'server_name': f"Server-{server.server_id}",
+                            'current_specs': f"{server_specs['vcpu']} vCPU, {server_specs['ram']}GB RAM",
+                            'recommended_instance': recommendation.get('recommended_instance'),
+                            'reasoning': recommendation.get('reasoning', ''),
+                            'confidence_level': recommendation.get('confidence_level'),
+                            'fallback_used': recommendation.get('fallback_used', False),
+                            'ai_model': recommendation.get('ai_model', getattr(ai_service, 'model_id', 'Unknown'))
+                        })
+                        
+                print(f"✅ Generated {len(server_recommendations)} AI server recommendations")
+                        
+            except Exception as ai_error:
+                print(f"❌ AI server recommendations failed: {ai_error}")
+                # Fall back to rule-based recommendations
+                
+        # If no AI recommendations, use rule-based fallback
+        if not server_recommendations:
+            print("📋 Using rule-based server recommendations")
+            for server in servers[:10]:
+                vcpu = server.vcpu or 2
+                ram = server.ram or 4
+                
+                # Simple rule-based instance selection
+                if vcpu <= 2 and ram <= 4:
+                    instance = 't3.medium'
+                elif vcpu <= 4 and ram <= 16:
+                    instance = 't3.xlarge'
+                else:
+                    instance = 'm5.2xlarge'
+                    
+                server_recommendations.append({
+                    'server_id': server.server_id,
+                    'server_name': f"Server-{server.server_id}",
+                    'current_specs': f"{vcpu} vCPU, {ram}GB RAM",
+                    'recommended_instance': instance,
+                    'reasoning': 'Rule-based sizing recommendation',
+                    'confidence_level': 'medium',
+                    'fallback_used': True,
+                    'fallback_reason': 'AI service not available'
+                })
         
         # Calculate timeline based on inventory
         base_weeks = 8
@@ -1076,8 +1163,10 @@ def get_migration_strategy():
                 "recommended_approach": "Hybrid Migration Strategy",
                 "timeline_weeks": total_weeks,
                 "confidence_level": 88,
-                "complexity_score": min(10, max(1, (servers_count + databases_count) / 2))
+                "complexity_score": min(10, max(1, (servers_count + databases_count) / 2)),
+                "ai_powered": len([r for r in server_recommendations if not r.get('fallback_used', True)]) > 0
             },
+            "server_recommendations": server_recommendations,
             "migration_phases": [
                 {
                     "phase": 1,
@@ -1128,7 +1217,7 @@ def get_migration_strategy():
                     "priority": "High"
                 },
                 {
-                    "type": "Optimization",
+                    "type": "Optimization", 
                     "title": "Database Modernization",
                     "description": f"Consider cloud-native services for {databases_count} databases",
                     "priority": "Medium"

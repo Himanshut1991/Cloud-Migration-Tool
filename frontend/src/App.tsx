@@ -18,6 +18,7 @@ import CostEstimationSimple from './components/Analysis/CostEstimationSimple';
 import MigrationStrategySimple from './components/Analysis/MigrationStrategySimple';
 import TimelineSimple from './components/Analysis/TimelineSimple';
 import ExportReports from './components/Reports/ExportReports';
+import ApiTester from './components/Debug/ApiTester';
 
 const { Content } = Layout;
 
@@ -46,6 +47,9 @@ const App: React.FC = () => {
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/dashboard" element={<Dashboard />} />
+                  
+                  {/* Debug */}
+                  <Route path="/debug/api-test" element={<ApiTester />} />
                   
                   {/* Inventory Management */}
                   <Route path="/inventory/servers" element={<ServerInventory />} />
