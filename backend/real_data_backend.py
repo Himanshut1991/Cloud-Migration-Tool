@@ -745,19 +745,33 @@ def export_report():
             }
         }
         
-        # Generate AI data based on selected report types
+        # Generate AI data based on selected report types (with fallback if AI unavailable)
         if 'cost_estimation' in report_types:
             logger.info("Generating cost estimation data for export")
-            cost_data = ai_service.get_ai_cost_estimation(
-                infrastructure_data, 'AWS', 'us-east-1', 'medium'
-            )
+            try:
+                if ai_service and ai_service.bedrock_client:
+                    cost_data = ai_service.get_ai_cost_estimation(
+                        infrastructure_data, 'AWS', 'us-east-1', 'medium'
+                    )
+                else:
+                    raise Exception("AI service unavailable")
+            except Exception as e:
+                logger.warning(f"AI cost estimation failed: {e}, using fallback data")
+                cost_data = _generate_fallback_cost_data(servers, databases, file_shares)
             export_data['cost_estimation'] = cost_data
         
         if 'migration_strategy' in report_types:
             logger.info("Generating migration strategy data for export")
-            strategy_data = ai_service.get_ai_migration_strategy(
-                infrastructure_data, 'AWS', 'us-east-1', 'medium'
-            )
+            try:
+                if ai_service and ai_service.bedrock_client:
+                    strategy_data = ai_service.get_ai_migration_strategy(
+                        infrastructure_data, 'AWS', 'us-east-1', 'medium'
+                    )
+                else:
+                    raise Exception("AI service unavailable")
+            except Exception as e:
+                logger.warning(f"AI migration strategy failed: {e}, using fallback data")
+                strategy_data = _generate_fallback_strategy_data(servers, databases, file_shares)
             export_data['migration_strategy'] = strategy_data
         
         if 'timeline' in report_types:
@@ -1327,6 +1341,115 @@ def _get_fallback_migration_strategy(infrastructure_data, cloud_provider, comple
                 "Perform detailed assessment before migration",
                 "Consider pilot migration for critical applications",
                 "Plan for adequate testing phases"
+            ]
+        }
+    }
+
+def _generate_fallback_cost_data(servers, databases, file_shares):
+    """Generate fallback cost estimation data for export when AI is unavailable"""
+    # Calculate basic costs
+    total_servers = len(servers)
+    total_databases = len(databases)
+    total_storage_gb = sum(fs.get('size_gb', 100) for fs in file_shares)
+    
+    # Basic cost calculations
+    server_monthly_cost = total_servers * 200  # $200 per server per month
+    database_monthly_cost = total_databases * 300  # $300 per database per month
+    storage_monthly_cost = total_storage_gb * 0.023  # $0.023 per GB per month
+    
+    annual_cloud_cost = (server_monthly_cost + database_monthly_cost + storage_monthly_cost) * 12
+    migration_cost = (total_servers * 500) + (total_databases * 1000) + (total_storage_gb * 0.10)
+    
+    return {
+        "grand_total": {
+            "annual_cloud_cost": annual_cloud_cost,
+            "one_time_migration_cost": migration_cost,
+            "total_first_year_cost": annual_cloud_cost + migration_cost
+        },
+        "cloud_infrastructure": {
+            "servers": {
+                "total_monthly_cost": server_monthly_cost,
+                "total_annual_cost": server_monthly_cost * 12
+            },
+            "databases": {
+                "total_monthly_cost": database_monthly_cost,
+                "total_annual_cost": database_monthly_cost * 12
+            },
+            "storage": {
+                "total_monthly_cost": storage_monthly_cost,
+                "total_annual_cost": storage_monthly_cost * 12
+            }
+        },
+        "ai_insights": {
+            "confidence_level": 0.75,
+            "ai_model_used": "fallback",
+            "fallback_used": True,
+            "cost_optimization_tips": [
+                "Consider Reserved Instances for 20-30% savings",
+                "Implement auto-scaling to optimize resource usage",
+                "Use appropriate storage tiers for different data types",
+                "Regular cost monitoring and optimization reviews"
+            ]
+        }
+    }
+
+def _generate_fallback_strategy_data(servers, databases, file_shares):
+    """Generate fallback migration strategy data for export when AI is unavailable"""
+    total_components = len(servers) + len(databases) + len(file_shares)
+    
+    # Determine complexity based on infrastructure size
+    if total_components < 10:
+        complexity = "low"
+        duration_weeks = 8
+    elif total_components < 25:
+        complexity = "medium" 
+        duration_weeks = 12
+    else:
+        complexity = "high"
+        duration_weeks = 16
+    
+    return {
+        "migration_phases": [
+            {
+                "phase": 1,
+                "name": "Assessment & Planning",
+                "duration": "3 weeks",
+                "components": ["Infrastructure Assessment", "Application Dependencies", "Risk Analysis"]
+            },
+            {
+                "phase": 2,
+                "name": "Infrastructure Setup",
+                "duration": "4 weeks", 
+                "components": ["Cloud Environment Setup", "Network Configuration", "Security Implementation"]
+            },
+            {
+                "phase": 3,
+                "name": "Migration Execution",
+                "duration": f"{duration_weeks - 7} weeks",
+                "components": ["Server Migration", "Database Migration", "Data Transfer"]
+            },
+            {
+                "phase": 4,
+                "name": "Testing & Cutover",
+                "duration": "2 weeks",
+                "components": ["System Testing", "User Acceptance Testing", "Go-Live"]
+            }
+        ],
+        "migration_approach": {
+            "overall_strategy": "Hybrid Lift-and-Shift with Optimization",
+            "estimated_duration": f"{duration_weeks} weeks",
+            "complexity_level": complexity.title(),
+            "rationale": f"Based on {total_components} components requiring migration"
+        },
+        "ai_insights": {
+            "confidence_level": 0.70,
+            "ai_model_used": "fallback",
+            "fallback_used": True,
+            "strategic_recommendations": [
+                "Perform detailed assessment before migration",
+                "Consider pilot migration for critical applications", 
+                "Plan for adequate testing phases",
+                "Ensure proper backup and rollback procedures"
             ]
         }
     }
