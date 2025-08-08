@@ -94,28 +94,47 @@ const MigrationStrategy: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchMigrationStrategy = async () => {
+    console.log('🔧 MigrationStrategy: Starting fetch...');
     setLoading(true);
     setError(null);
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const requestData = { analysis_type: 'comprehensive' };
+      console.log('🔧 MigrationStrategy: Request data:', requestData);
+      console.log('🔧 MigrationStrategy: Making fetch request...');
+      
       const response = await fetch('http://localhost:5000/api/migration-strategy', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          analysis_type: 'comprehensive'
-        })
+        body: JSON.stringify(requestData),
+        signal: controller.signal
       });
       
+      clearTimeout(timeoutId);
+      
+      console.log('🔧 MigrationStrategy: Response status:', response.status);
+      console.log('🔧 MigrationStrategy: Response headers:', Object.fromEntries(response.headers));
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch migration strategy');
+        throw new Error(`Failed to fetch migration strategy: ${response.status}`);
       }
       
       const result = await response.json();
+      console.log('🔧 MigrationStrategy: Data received:', result);
+      console.log('🔧 MigrationStrategy: Setting data and clearing error...');
       setData(result);
+      setError(null); // Explicitly clear any previous error
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      console.error('🔧 MigrationStrategy: Error occurred:', err);
+      console.error('🔧 MigrationStrategy: Error message:', errorMessage);
+      setError(`Failed to fetch migration strategy: ${errorMessage}`);
     } finally {
+      console.log('🔧 MigrationStrategy: Setting loading to false');
       setLoading(false);
     }
   };

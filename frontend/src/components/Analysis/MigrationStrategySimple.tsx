@@ -26,30 +26,68 @@ import {
 const { Title, Paragraph, Text } = Typography;
 
 interface MigrationStrategyData {
-  strategy_overview: {
-    recommended_approach: string;
-    timeline_weeks: number;
-    confidence_level: number;
-    complexity_score: number;
+  migration_approach: {
+    overall_strategy: string;
+    estimated_duration: string;
+    complexity_level: string;
+    rationale: string;
   };
   migration_phases: Array<{
     phase: number;
     name: string;
-    duration_weeks: number;
-    activities: string[];
+    duration: string;
+    components: string[];
+    dependencies: string[];
+    risks: string[];
+    success_criteria: string[];
   }>;
-  recommendations: Array<{
-    type: string;
-    title: string;
-    description: string;
-    priority: string;
-  }>;
-  risk_assessment: Array<{
-    risk: string;
-    probability: string;
-    impact: string;
-    mitigation: string;
-  }>;
+  recommendations: {
+    quick_wins: string[];
+    cost_optimization: string[];
+    performance_improvements: string[];
+    modernization_opportunities: string[];
+  };
+  risk_assessment: {
+    high_risks: string[];
+    medium_risks: string[];
+    low_risks: string[];
+    mitigation_strategies: Record<string, string>;
+  };
+  component_strategies: {
+    servers: Array<{
+      server_id: string;
+      migration_type: string;
+      current_state: string;
+      target_state: string;
+      complexity: string;
+      estimated_effort: string;
+      rationale: string;
+    }>;
+    databases: Array<{
+      db_name: string;
+      current_engine: string;
+      target_engine: string;
+      migration_type: string;
+      approach: string;
+      complexity: string;
+      data_migration_strategy: string;
+      downtime_estimate: string;
+    }>;
+    storage: Array<{
+      share_name: string;
+      current_type: string;
+      target_type: string;
+      migration_method: string;
+      sync_strategy: string;
+      cutover_approach: string;
+    }>;
+  };
+  ai_insights?: {
+    confidence_level: number;
+    ai_model_used: string;
+    fallback_used: boolean;
+    strategic_recommendations: string[];
+  };
 }
 
 const MigrationStrategySimple: React.FC = () => {
@@ -169,22 +207,19 @@ const MigrationStrategySimple: React.FC = () => {
                   <div>
                     <Text strong>Recommended Approach: </Text>
                     <Tag color="blue" style={{ fontSize: '14px' }}>
-                      {data.strategy_overview.recommended_approach}
+                      {data.migration_approach.overall_strategy}
                     </Tag>
                   </div>
                   <div>
                     <Text strong>Timeline: </Text>
-                    <Text>{data.strategy_overview.timeline_weeks} weeks</Text>
+                    <Text>{data.migration_approach.estimated_duration}</Text>
                   </div>
                   <div>
-                    <Text strong>Complexity Score: </Text>
-                    <Progress 
-                      percent={data.strategy_overview.complexity_score * 10} 
-                      steps={10}
-                      size="small"
-                      status={data.strategy_overview.complexity_score > 7 ? 'exception' : 
-                             data.strategy_overview.complexity_score > 4 ? 'active' : 'success'}
-                    />
+                    <Text strong>Complexity Level: </Text>
+                    <Tag color={data.migration_approach.complexity_level.toLowerCase() === 'high' ? 'red' : 
+                                data.migration_approach.complexity_level.toLowerCase() === 'medium' ? 'orange' : 'green'}>
+                      {data.migration_approach.complexity_level}
+                    </Tag>
                   </div>
                 </Space>
               </Col>
@@ -192,9 +227,9 @@ const MigrationStrategySimple: React.FC = () => {
                 <div style={{ textAlign: 'center' }}>
                   <RobotOutlined style={{ fontSize: '48px', color: '#1890ff' }} />
                   <div style={{ marginTop: 16 }}>
-                    <Text strong>AI Confidence</Text>
-                    <div style={{ fontSize: '24px', color: '#52c41a' }}>
-                      {data.strategy_overview.confidence_level}%
+                    <Text strong>Rationale</Text>
+                    <div style={{ fontSize: '14px', color: '#666', marginTop: 8 }}>
+                      {data.migration_approach.rationale}
                     </div>
                   </div>
                 </div>
@@ -216,16 +251,16 @@ const MigrationStrategySimple: React.FC = () => {
                       <Title level={4} style={{ margin: 0 }}>
                         Phase {phase.phase}: {phase.name}
                       </Title>
-                      <Tag color="green">{phase.duration_weeks} weeks</Tag>
+                      <Tag color="green">{phase.duration}</Tag>
                     </Space>
                     <List
                       size="small"
-                      dataSource={phase.activities}
-                      renderItem={(activity, idx) => (
+                      dataSource={phase.components}
+                      renderItem={(component: string, idx) => (
                         <List.Item key={idx}>
                           <Space>
                             <Badge status="processing" />
-                            {activity}
+                            {component}
                           </Space>
                         </List.Item>
                       )}
@@ -238,58 +273,193 @@ const MigrationStrategySimple: React.FC = () => {
 
           {/* Recommendations */}
           <Card title="Strategic Recommendations" style={{ marginBottom: 24 }}>
-            <List
-              dataSource={data.recommendations}
-              renderItem={(rec) => (
-                <List.Item>
-                  <List.Item.Meta
-                    avatar={<InfoCircleOutlined style={{ color: '#1890ff' }} />}
-                    title={
-                      <Space>
-                        {rec.title}
-                        <Tag color={getPriorityColor(rec.priority)}>
-                          {rec.priority} Priority
-                        </Tag>
-                        <Tag color="blue">{rec.type}</Tag>
-                      </Space>
-                    }
-                    description={rec.description}
+            <Row gutter={[16, 16]}>
+              <Col xs={24} md={12}>
+                <Card size="small" title="Quick Wins" style={{ height: '100%' }}>
+                  <List
+                    size="small"
+                    dataSource={data.recommendations.quick_wins}
+                    renderItem={(item: string) => (
+                      <List.Item>
+                        <Space>
+                          <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                          {item}
+                        </Space>
+                      </List.Item>
+                    )}
                   />
-                </List.Item>
-              )}
-            />
+                </Card>
+              </Col>
+              <Col xs={24} md={12}>
+                <Card size="small" title="Cost Optimization" style={{ height: '100%' }}>
+                  <List
+                    size="small"
+                    dataSource={data.recommendations.cost_optimization}
+                    renderItem={(item: string) => (
+                      <List.Item>
+                        <Space>
+                          <InfoCircleOutlined style={{ color: '#1890ff' }} />
+                          {item}
+                        </Space>
+                      </List.Item>
+                    )}
+                  />
+                </Card>
+              </Col>
+              <Col xs={24} md={12}>
+                <Card size="small" title="Performance Improvements" style={{ height: '100%' }}>
+                  <List
+                    size="small"
+                    dataSource={data.recommendations.performance_improvements}
+                    renderItem={(item: string) => (
+                      <List.Item>
+                        <Space>
+                          <InfoCircleOutlined style={{ color: '#faad14' }} />
+                          {item}
+                        </Space>
+                      </List.Item>
+                    )}
+                  />
+                </Card>
+              </Col>
+              <Col xs={24} md={12}>
+                <Card size="small" title="Modernization Opportunities" style={{ height: '100%' }}>
+                  <List
+                    size="small"
+                    dataSource={data.recommendations.modernization_opportunities}
+                    renderItem={(item: string) => (
+                      <List.Item>
+                        <Space>
+                          <RobotOutlined style={{ color: '#722ed1' }} />
+                          {item}
+                        </Space>
+                      </List.Item>
+                    )}
+                  />
+                </Card>
+              </Col>
+            </Row>
           </Card>
 
           {/* Risk Assessment */}
           <Card title="Risk Assessment" style={{ marginBottom: 24 }}>
-            <List
-              dataSource={data.risk_assessment}
-              renderItem={(risk) => (
-                <List.Item>
-                  <List.Item.Meta
-                    avatar={<ExclamationCircleOutlined style={{ color: '#faad14' }} />}
-                    title={
-                      <Space>
-                        {risk.risk}
-                        <Tag color={getRiskColor(risk.probability)}>
-                          {risk.probability} Probability
-                        </Tag>
-                        <Tag color={getRiskColor(risk.impact)}>
-                          {risk.impact} Impact
-                        </Tag>
-                      </Space>
-                    }
-                    description={
-                      <div>
-                        <Text strong>Mitigation: </Text>
-                        {risk.mitigation}
-                      </div>
-                    }
+            <Row gutter={[16, 16]}>
+              <Col xs={24} md={8}>
+                <Card size="small" title="High Risks" style={{ height: '100%' }}>
+                  <List
+                    size="small"
+                    dataSource={data.risk_assessment.high_risks}
+                    renderItem={(risk: string) => (
+                      <List.Item>
+                        <Space>
+                          <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
+                          <Text>{risk}</Text>
+                        </Space>
+                      </List.Item>
+                    )}
                   />
-                </List.Item>
-              )}
-            />
+                </Card>
+              </Col>
+              <Col xs={24} md={8}>
+                <Card size="small" title="Medium Risks" style={{ height: '100%' }}>
+                  <List
+                    size="small"
+                    dataSource={data.risk_assessment.medium_risks}
+                    renderItem={(risk: string) => (
+                      <List.Item>
+                        <Space>
+                          <ExclamationCircleOutlined style={{ color: '#faad14' }} />
+                          <Text>{risk}</Text>
+                        </Space>
+                      </List.Item>
+                    )}
+                  />
+                </Card>
+              </Col>
+              <Col xs={24} md={8}>
+                <Card size="small" title="Low Risks" style={{ height: '100%' }}>
+                  <List
+                    size="small"
+                    dataSource={data.risk_assessment.low_risks}
+                    renderItem={(risk: string) => (
+                      <List.Item>
+                        <Space>
+                          <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                          <Text>{risk}</Text>
+                        </Space>
+                      </List.Item>
+                    )}
+                  />
+                </Card>
+              </Col>
+            </Row>
+            {data.risk_assessment.mitigation_strategies && Object.keys(data.risk_assessment.mitigation_strategies).length > 0 && (
+              <Card size="small" title="Mitigation Strategies" style={{ marginTop: 16 }}>
+                <List
+                  size="small"
+                  dataSource={Object.entries(data.risk_assessment.mitigation_strategies)}
+                  renderItem={([risk, mitigation]: [string, string]) => (
+                    <List.Item>
+                      <List.Item.Meta
+                        avatar={<InfoCircleOutlined style={{ color: '#1890ff' }} />}
+                        title={<Text strong>{risk}</Text>}
+                        description={mitigation}
+                      />
+                    </List.Item>
+                  )}
+                />
+              </Card>
+            )}
           </Card>
+
+          {/* AI Insights */}
+          {data.ai_insights && (
+            <Card 
+              title={
+                <Space>
+                  <RobotOutlined />
+                  AI Strategy Analysis
+                  <Tag color={data.ai_insights.fallback_used ? 'orange' : 'green'}>
+                    {Math.round(data.ai_insights.confidence_level * 100)}% Confidence
+                  </Tag>
+                  {data.ai_insights.fallback_used && (
+                    <Tag color="blue">Rule-based</Tag>
+                  )}
+                  {!data.ai_insights.fallback_used && (
+                    <Tag color="purple">{data.ai_insights.ai_model_used}</Tag>
+                  )}
+                </Space>
+              } 
+              style={{ marginBottom: 24 }}
+            >
+              {data.ai_insights.fallback_used && (
+                <Alert 
+                  message="Using Advanced Rule-based Analysis" 
+                  description="AI services are temporarily unavailable. Using intelligent rule-based migration strategy recommendations."
+                  type="info" 
+                  style={{ marginBottom: 16 }}
+                />
+              )}
+              
+              {!data.ai_insights.fallback_used && (
+                <Alert 
+                  message="AI-Powered Migration Strategy Active" 
+                  description={`Strategy analysis powered by ${data.ai_insights.ai_model_used} with ${Math.round(data.ai_insights.confidence_level * 100)}% confidence level.`}
+                  type="success" 
+                  style={{ marginBottom: 16 }}
+                />
+              )}
+              
+              <Card size="small" title="🎯 Strategic AI Recommendations">
+                {data.ai_insights.strategic_recommendations?.map((recommendation, index) => (
+                  <div key={index} style={{ marginBottom: 12, padding: '8px', backgroundColor: '#f6f8ff', borderRadius: '4px' }}>
+                    <Text strong style={{ color: '#1890ff' }}>#{index + 1}</Text>
+                    <Text style={{ marginLeft: 8 }}>{recommendation}</Text>
+                  </div>
+                ))}
+              </Card>
+            </Card>
+          )}
         </>
       ) : (
         <Card>

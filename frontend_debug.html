@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Debug - Cloud Migration Tool</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container { 
+            background: white;
+            margin: 20px 0; 
+            padding: 20px; 
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status { 
+            padding: 10px; 
+            margin: 10px 0; 
+            border-radius: 4px;
+            border: 1px solid;
+        }
+        .success { 
+            background-color: #d4edda; 
+            color: #155724;
+            border-color: #c3e6cb;
+        }
+        .error { 
+            background-color: #f8d7da; 
+            color: #721c24;
+            border-color: #f5c6cb;
+        }
+        .info { 
+            background-color: #d1ecf1; 
+            color: #0c5460;
+            border-color: #bee5eb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border-color: #ffeaa7;
+        }
+        button { 
+            background-color: #007bff; 
+            color: white; 
+            padding: 12px 24px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin: 8px;
+            font-size: 14px;
+        }
+        button:hover { 
+            background-color: #0056b3; 
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            border: 1px solid #e9ecef;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .endpoint-info {
+            font-family: monospace;
+            background-color: #f8f9fa;
+            padding: 8px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .debug-info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 10px;
+        }
+        .cors-test {
+            background-color: #e7f3ff;
+            border: 1px solid #b8daff;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Frontend Debug - Cloud Migration Tool</h1>
+    <p><strong>Debug Time:</strong> <span id="debug-time"></span></p>
+    
+    <div class="cors-test">
+        <h3>🌐 CORS & Network Test</h3>
+        <p>This page tests direct API calls with detailed error information to diagnose frontend issues.</p>
+        <div>
+            <strong>Backend URL:</strong> <code>http://localhost:5000</code><br>
+            <strong>Frontend URL:</strong> <code>http://localhost:5173</code>
+        </div>
+    </div>
+
+    <div class="test-grid">
+        <div class="test-container">
+            <h2>💰 Cost Estimation Debug</h2>
+            <div class="endpoint-info">POST /api/cost-estimation</div>
+            <div id="cost-status" class="status info">Ready to test</div>
+            <button onclick="testCostEstimation()" id="cost-btn">Test Cost Estimation</button>
+            <button onclick="testCostEstimationCORS()" id="cost-cors-btn">Test CORS Preflight</button>
+            <div id="cost-details" class="debug-info"></div>
+            <div id="cost-response"></div>
+        </div>
+        
+        <div class="test-container">
+            <h2>🚀 Migration Strategy Debug</h2>
+            <div class="endpoint-info">POST /api/migration-strategy</div>
+            <div id="strategy-status" class="status info">Ready to test</div>
+            <button onclick="testMigrationStrategy()" id="strategy-btn">Test Migration Strategy</button>
+            <button onclick="testMigrationStrategyCORS()" id="strategy-cors-btn">Test CORS Preflight</button>
+            <div id="strategy-details" class="debug-info"></div>
+            <div id="strategy-response"></div>
+        </div>
+    </div>
+    
+    <div class="test-container">
+        <h2>🔗 Direct Frontend Page Tests</h2>
+        <div class="status warning">
+            <strong>Test the actual React pages:</strong>
+            <ul style="margin: 10px 0;">
+                <li><a href="http://localhost:5173/analysis/cost-estimation" target="_blank">Cost Estimation Page</a> - Should load without "failed to fetch"</li>
+                <li><a href="http://localhost:5173/analysis/migration-strategy" target="_blank">Migration Strategy Page</a> - Should not be blank</li>
+                <li><a href="http://localhost:5173/analysis/timeline" target="_blank">Timeline Page</a> - DatePicker should work</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>📊 Complete API Status</h2>
+        <div id="api-status" class="status info">Click button to check all endpoints</div>
+        <button onclick="checkAllEndpoints()" id="check-all-btn">Check All Endpoints</button>
+        <div id="api-results"></div>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://localhost:5000/api';
+        
+        // Set debug time
+        document.getElementById('debug-time').textContent = new Date().toLocaleString();
+        
+        function updateStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+        }
+        
+        function updateDetails(elementId, details) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<small>${details}</small>`;
+        }
+        
+        function displayResponse(elementId, data, isError = false) {
+            const element = document.getElementById(elementId);
+            if (isError) {
+                element.innerHTML = `<div class="status error">Error Response:<br><pre>${data}</pre></div>`;
+            } else if (typeof data === 'object') {
+                // Show only summary for large responses
+                const summary = {
+                    type: 'Success',
+                    dataSize: JSON.stringify(data).length + ' bytes',
+                    keys: Object.keys(data),
+                    sampleData: data
+                };
+                element.innerHTML = `<div class="status success">Response Summary:<br><pre>${JSON.stringify(summary, null, 2)}</pre></div>`;
+            } else {
+                element.innerHTML = `<div class="status success">Response:<br><pre>${data}</pre></div>`;
+            }
+        }
+        
+        async function testCostEstimation() {
+            const btn = document.getElementById('cost-btn');
+            btn.disabled = true;
+            updateStatus('cost-status', 'Testing cost estimation...', 'warning');
+            updateDetails('cost-details', 'Making POST request...');
+            
+            try {
+                const startTime = performance.now();
+                const response = await fetch(`${BASE_URL}/cost-estimation`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        cloud_provider: 'AWS',
+                        target_region: 'us-east-1',
+                        migration_type: 'lift_and_shift'
+                    })
+                });
+                
+                const endTime = performance.now();
+                const duration = Math.round(endTime - startTime);
+                
+                updateDetails('cost-details', `Request completed in ${duration}ms | Status: ${response.status} | Headers: ${JSON.stringify(Object.fromEntries(response.headers))}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                const data = await response.json();
+                updateStatus('cost-status', '✅ Cost estimation successful!', 'success');
+                displayResponse('cost-response', data);
+                
+            } catch (error) {
+                updateStatus('cost-status', `❌ Error: ${error.message}`, 'error');
+                updateDetails('cost-details', `Error details: ${error.stack || error.toString()}`);
+                displayResponse('cost-response', error.message, true);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+        
+        async function testCostEstimationCORS() {
+            updateStatus('cost-status', 'Testing CORS preflight...', 'warning');
+            
+            try {
+                const response = await fetch(`${BASE_URL}/cost-estimation`, {
+                    method: 'OPTIONS'
+                });
+                
+                const headers = Object.fromEntries(response.headers);
+                updateStatus('cost-status', '✅ CORS preflight successful!', 'success');
+                updateDetails('cost-details', `CORS Headers: ${JSON.stringify(headers)}`);
+                
+            } catch (error) {
+                updateStatus('cost-status', `❌ CORS Error: ${error.message}`, 'error');
+                updateDetails('cost-details', error.toString());
+            }
+        }
+        
+        async function testMigrationStrategy() {
+            const btn = document.getElementById('strategy-btn');
+            btn.disabled = true;
+            updateStatus('strategy-status', 'Testing migration strategy...', 'warning');
+            updateDetails('strategy-details', 'Making POST request...');
+            
+            try {
+                const startTime = performance.now();
+                const response = await fetch(`${BASE_URL}/migration-strategy`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        analysis_type: 'comprehensive'
+                    })
+                });
+                
+                const endTime = performance.now();
+                const duration = Math.round(endTime - startTime);
+                
+                updateDetails('strategy-details', `Request completed in ${duration}ms | Status: ${response.status} | Headers: ${JSON.stringify(Object.fromEntries(response.headers))}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                const data = await response.json();
+                updateStatus('strategy-status', '✅ Migration strategy successful!', 'success');
+                displayResponse('strategy-response', data);
+                
+            } catch (error) {
+                updateStatus('strategy-status', `❌ Error: ${error.message}`, 'error');
+                updateDetails('strategy-details', `Error details: ${error.stack || error.toString()}`);
+                displayResponse('strategy-response', error.message, true);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+        
+        async function testMigrationStrategyCORS() {
+            updateStatus('strategy-status', 'Testing CORS preflight...', 'warning');
+            
+            try {
+                const response = await fetch(`${BASE_URL}/migration-strategy`, {
+                    method: 'OPTIONS'
+                });
+                
+                const headers = Object.fromEntries(response.headers);
+                updateStatus('strategy-status', '✅ CORS preflight successful!', 'success');
+                updateDetails('strategy-details', `CORS Headers: ${JSON.stringify(headers)}`);
+                
+            } catch (error) {
+                updateStatus('strategy-status', `❌ CORS Error: ${error.message}`, 'error');
+                updateDetails('strategy-details', error.toString());
+            }
+        }
+        
+        async function checkAllEndpoints() {
+            const btn = document.getElementById('check-all-btn');
+            btn.disabled = true;
+            updateStatus('api-status', 'Checking all endpoints...', 'warning');
+            
+            const endpoints = [
+                { name: 'Servers', url: `${BASE_URL}/servers`, method: 'GET' },
+                { name: 'Databases', url: `${BASE_URL}/databases`, method: 'GET' },
+                { name: 'File Shares', url: `${BASE_URL}/file-shares`, method: 'GET' },
+                { name: 'Resource Rates', url: `${BASE_URL}/resource-rates`, method: 'GET' },
+                { name: 'Cost Estimation', url: `${BASE_URL}/cost-estimation`, method: 'POST', body: '{}' },
+                { name: 'Migration Strategy', url: `${BASE_URL}/migration-strategy`, method: 'POST', body: '{}' },
+                { name: 'Timeline', url: `${BASE_URL}/timeline`, method: 'POST', body: '{"start_date": "2024-03-01"}' }
+            ];
+            
+            let results = [];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const options = {
+                        method: endpoint.method,
+                        headers: endpoint.method === 'POST' ? { 'Content-Type': 'application/json' } : {}
+                    };
+                    
+                    if (endpoint.body) {
+                        options.body = endpoint.body;
+                    }
+                    
+                    const response = await fetch(endpoint.url, options);
+                    const data = await response.json();
+                    
+                    results.push(`✅ ${endpoint.name}: ${response.status} (${JSON.stringify(data).length} bytes)`);
+                } catch (error) {
+                    results.push(`❌ ${endpoint.name}: ${error.message}`);
+                }
+            }
+            
+            updateStatus('api-status', 'Endpoint check complete!', 'success');
+            document.getElementById('api-results').innerHTML = `<pre>${results.join('\\n')}</pre>`;
+            btn.disabled = false;
+        }
+        
+        // Auto-run basic tests on page load
+        window.onload = function() {
+            console.log('Frontend debug page loaded at', new Date().toISOString());
+            // Automatically check all endpoints to give immediate status
+            setTimeout(checkAllEndpoints, 1000);
+        };
+    </script>
+</body>
+</html>

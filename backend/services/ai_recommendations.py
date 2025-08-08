@@ -27,8 +27,8 @@ class AIRecommendationService:
             self.model_id = os.getenv('BEDROCK_MODEL_ID', "anthropic.claude-3-sonnet-20240229-v1:0")
             self.logger = logging.getLogger(__name__)
             
-            # Test if Bedrock is available
-            self._test_bedrock_connection()
+            # Skip connection test to avoid hanging
+            # self._test_bedrock_connection()
             
         except Exception as e:
             self.logger.warning(f"Bedrock client initialization failed: {e}")
@@ -310,7 +310,7 @@ class AIRecommendationService:
 
         Provide your response in the following JSON format:
         {{
-            "confidence_level": 90,
+            "confidence_level": 0.90,
             "recommendations": [
                 "Specific recommendation 1 with expected savings",
                 "Specific recommendation 2 with expected savings",
@@ -346,6 +346,262 @@ class AIRecommendationService:
             self.logger.error(f"AI cost optimization failed: {e}")
             return self._fallback_cost_optimization(inventory_data)
     
+    def get_ai_cost_estimation(self, infrastructure_data: Dict[str, Any], cloud_provider: str = "AWS", target_region: str = "us-east-1") -> Dict[str, Any]:
+        """Get AI-powered comprehensive cost estimation"""
+        if not self.bedrock_client:
+            return self._fallback_cost_estimation(infrastructure_data, cloud_provider, target_region)
+
+        servers = infrastructure_data.get('servers', [])
+        databases = infrastructure_data.get('databases', [])
+        file_shares = infrastructure_data.get('file_shares', [])
+
+        prompt = f"""
+        You are a senior cloud cost optimization specialist with expertise in {cloud_provider} pricing models. Provide a comprehensive cost estimation for migrating the following infrastructure to {cloud_provider} in the {target_region} region.
+
+        Infrastructure to Migrate:
+        Servers ({len(servers)} total):
+        {json.dumps(servers, indent=2)}
+
+        Databases ({len(databases)} total):
+        {json.dumps(databases, indent=2)}
+
+        File Shares ({len(file_shares)} total):
+        {json.dumps(file_shares, indent=2)}
+
+        Consider these factors in your cost analysis:
+        1. Current usage patterns and peak hours
+        2. Reserved instance vs on-demand pricing
+        3. Storage optimization opportunities
+        4. Network transfer costs
+        5. Backup and disaster recovery costs
+        6. Management and monitoring costs
+        7. Migration service costs
+        8. Professional services required
+
+        Provide your response in this exact JSON format:
+        {{
+            "grand_total": {{
+                "annual_cloud_cost": <number>,
+                "one_time_migration_cost": <number>,
+                "total_first_year_cost": <number>
+            }},
+            "cloud_infrastructure": {{
+                "servers": {{
+                    "total_monthly_cost": <number>,
+                    "total_annual_cost": <number>,
+                    "server_recommendations": [
+                        {{
+                            "server_id": "string",
+                            "current_specs": "string",
+                            "recommended_instance": "string",
+                            "monthly_cost": <number>,
+                            "annual_cost": <number>,
+                            "optimization_notes": "string"
+                        }}
+                    ]
+                }},
+                "databases": {{
+                    "total_monthly_cost": <number>,
+                    "total_annual_cost": <number>,
+                    "database_recommendations": [
+                        {{
+                            "db_name": "string",
+                            "db_type": "string",
+                            "recommended_instance": "string",
+                            "size_gb": <number>,
+                            "monthly_cost": <number>,
+                            "annual_cost": <number>,
+                            "optimization_notes": "string"
+                        }}
+                    ]
+                }},
+                "storage": {{
+                    "total_monthly_cost": <number>,
+                    "total_annual_cost": <number>,
+                    "storage_recommendations": [
+                        {{
+                            "share_name": "string",
+                            "size_gb": <number>,
+                            "recommended_storage": "string",
+                            "access_pattern": "string",
+                            "monthly_cost": <number>,
+                            "annual_cost": <number>,
+                            "optimization_notes": "string"
+                        }}
+                    ]
+                }},
+                "total_monthly_cost": <number>,
+                "total_annual_cost": <number>
+            }},
+            "migration_services": {{
+                "total_professional_services_cost": <number>,
+                "resource_breakdown": [
+                    {{
+                        "role": "string",
+                        "rate_per_hour": <number>,
+                        "hours_per_week": <number>,
+                        "duration_weeks": <number>,
+                        "total_hours": <number>,
+                        "total_cost": <number>
+                    }}
+                ]
+            }},
+            "ai_insights": {{
+                "confidence_level": <number>,
+                "cost_optimization_tips": ["string"],
+                "potential_savings": {{
+                    "percentage": <number>,
+                    "annual_amount": <number>
+                }},
+                "recommendations": ["string"],
+                "ai_model_used": "{self.model_id}",
+                "fallback_used": false
+            }}
+        }}
+        """
+
+        try:
+            response = self._call_bedrock(prompt)
+            result = self._parse_ai_response(response, 'cost_estimation')
+            
+            if result and not result.get('fallback_used'):
+                result['ai_insights']['ai_model_used'] = self.model_id
+                result['ai_insights']['fallback_used'] = False
+            
+            return result
+        except Exception as e:
+            self.logger.error(f"AI cost estimation failed: {e}")
+            return self._fallback_cost_estimation(infrastructure_data, cloud_provider, target_region)
+
+    def get_ai_migration_strategy(self, infrastructure_data: Dict[str, Any], cloud_provider: str = "AWS", 
+                                target_region: str = "us-east-1", complexity: str = "medium") -> Dict[str, Any]:
+        """Get AI-powered comprehensive migration strategy"""
+        if not self.bedrock_client:
+            return self._fallback_migration_strategy(infrastructure_data, cloud_provider, complexity)
+
+        servers = infrastructure_data.get('servers', [])
+        databases = infrastructure_data.get('databases', [])
+        file_shares = infrastructure_data.get('file_shares', [])
+        complexity_score = len(servers) + len(databases) + len(file_shares)
+
+        prompt = f"""
+        You are a senior cloud migration architect with expertise in {cloud_provider} migration strategies. Create a comprehensive migration strategy for the following infrastructure with {complexity} complexity level.
+
+        Infrastructure to Migrate:
+        Servers ({len(servers)} total):
+        {json.dumps(servers, indent=2)}
+
+        Databases ({len(databases)} total):
+        {json.dumps(databases, indent=2)}
+
+        File Shares ({len(file_shares)} total):
+        {json.dumps(file_shares, indent=2)}
+
+        Migration Context:
+        - Target Cloud: {cloud_provider}
+        - Target Region: {target_region}
+        - Complexity Level: {complexity}
+        - Total Complexity Score: {complexity_score}
+
+        Consider these migration approaches:
+        1. Rehost (Lift and Shift) - Quick migration with minimal changes
+        2. Replatform - Some optimization during migration
+        3. Refactor/Rearchitect - Significant modernization
+        4. Replace - Move to SaaS solutions
+        5. Hybrid approaches for different components
+
+        Provide your response in this exact JSON format:
+        {{
+            "migration_approach": {{
+                "overall_strategy": "string",
+                "estimated_duration": "string",
+                "complexity_level": "Low/Medium/High",
+                "rationale": "string"
+            }},
+            "component_strategies": {{
+                "servers": [
+                    {{
+                        "server_id": "string",
+                        "migration_type": "string",
+                        "current_state": "string",
+                        "target_state": "string",
+                        "complexity": "string",
+                        "estimated_effort": "string",
+                        "rationale": "string"
+                    }}
+                ],
+                "databases": [
+                    {{
+                        "db_name": "string",
+                        "current_engine": "string",
+                        "target_engine": "string",
+                        "migration_type": "string",
+                        "approach": "string",
+                        "complexity": "string",
+                        "data_migration_strategy": "string",
+                        "downtime_estimate": "string"
+                    }}
+                ],
+                "storage": [
+                    {{
+                        "share_name": "string",
+                        "current_type": "string",
+                        "target_type": "string",
+                        "migration_method": "string",
+                        "sync_strategy": "string",
+                        "cutover_approach": "string"
+                    }}
+                ]
+            }},
+            "migration_phases": [
+                {{
+                    "phase": <number>,
+                    "name": "string",
+                    "duration": "string",
+                    "components": ["string"],
+                    "dependencies": ["string"],
+                    "risks": ["string"],
+                    "success_criteria": ["string"]
+                }}
+            ],
+            "recommendations": {{
+                "quick_wins": ["string"],
+                "cost_optimization": ["string"],
+                "performance_improvements": ["string"],
+                "modernization_opportunities": ["string"]
+            }},
+            "risk_assessment": {{
+                "high_risks": ["string"],
+                "medium_risks": ["string"],
+                "low_risks": ["string"],
+                "mitigation_strategies": {{
+                    "risk_name": "mitigation_strategy"
+                }}
+            }},
+            "ai_insights": {{
+                "confidence_level": <number>,
+                "ai_model_used": "{self.model_id}",
+                "fallback_used": false,
+                "strategic_recommendations": ["string"]
+            }}
+        }}
+        """
+
+        try:
+            response = self._call_bedrock(prompt)
+            result = self._parse_ai_response(response, 'migration_strategy')
+            
+            if result and not result.get('fallback_used'):
+                if 'ai_insights' not in result:
+                    result['ai_insights'] = {}
+                result['ai_insights']['ai_model_used'] = self.model_id
+                result['ai_insights']['fallback_used'] = False
+            
+            return result
+        except Exception as e:
+            self.logger.error(f"AI migration strategy failed: {e}")
+            return self._fallback_migration_strategy(infrastructure_data, cloud_provider, complexity)
+
     def _call_bedrock(self, prompt: str) -> str:
         """Call AWS Bedrock with the given prompt"""
         try:
@@ -450,7 +706,16 @@ class AIRecommendationService:
             end_idx = response.rfind('}') + 1
             if start_idx != -1 and end_idx != 0:
                 json_str = response[start_idx:end_idx]
-                return json.loads(json_str)
+                result = json.loads(json_str)
+                
+                # Normalize confidence level to decimal format (0.0-1.0)
+                if 'confidence_level' in result:
+                    confidence = result['confidence_level']
+                    if isinstance(confidence, (int, float)) and confidence > 1:
+                        # Convert percentage to decimal (85 -> 0.85)
+                        result['confidence_level'] = confidence / 100.0
+                
+                return result
             else:
                 raise ValueError("No JSON found in response")
         except Exception as e:
@@ -530,7 +795,7 @@ class AIRecommendationService:
         file_shares_count = len(inventory_data.get('file_shares', []))
         
         return {
-            "confidence_level": 85,
+            "confidence_level": 0.85,
             "recommendations": [
                 f"Consider reserved instances for {servers_count} servers - save 20-72% vs on-demand pricing",
                 f"Evaluate managed database services for {databases_count} databases to reduce operational costs",
@@ -551,4 +816,270 @@ class AIRecommendationService:
             },
             "fallback_used": True,
             "fallback_reason": "AI service not available - using rule-based recommendations"
+        }
+    
+    def _fallback_cost_estimation(self, infrastructure_data: Dict[str, Any], cloud_provider: str, target_region: str) -> Dict[str, Any]:
+        """Fallback cost estimation when AI is not available"""
+        servers = infrastructure_data.get('servers', [])
+        databases = infrastructure_data.get('databases', [])
+        file_shares = infrastructure_data.get('file_shares', [])
+        
+        # Simple cost calculation based on resource count
+        server_monthly_cost = len(servers) * 200  # Approximate $200/server/month
+        db_monthly_cost = len(databases) * 300    # Approximate $300/db/month
+        storage_monthly_cost = len(file_shares) * 50  # Approximate $50/share/month
+        
+        total_monthly = server_monthly_cost + db_monthly_cost + storage_monthly_cost
+        total_annual = total_monthly * 12
+        migration_cost = (len(servers) + len(databases)) * 1000  # $1000 per major component
+        
+        return {
+            "grand_total": {
+                "annual_cloud_cost": total_annual,
+                "one_time_migration_cost": migration_cost,
+                "total_first_year_cost": total_annual + migration_cost
+            },
+            "cloud_infrastructure": {
+                "servers": {
+                    "total_monthly_cost": server_monthly_cost,
+                    "total_annual_cost": server_monthly_cost * 12,
+                    "server_recommendations": [
+                        {
+                            "server_id": f"Server-{i+1}",
+                            "current_specs": "Standard server",
+                            "recommended_instance": "t3.medium",
+                            "monthly_cost": 200,
+                            "annual_cost": 2400,
+                            "optimization_notes": "Basic estimation - requires detailed analysis"
+                        } for i in range(len(servers))
+                    ]
+                },
+                "databases": {
+                    "total_monthly_cost": db_monthly_cost,
+                    "total_annual_cost": db_monthly_cost * 12,
+                    "database_recommendations": [
+                        {
+                            "db_name": f"Database-{i+1}",
+                            "db_type": "MySQL",
+                            "recommended_instance": "db.t3.medium",
+                            "size_gb": 100,
+                            "monthly_cost": 300,
+                            "annual_cost": 3600,
+                            "optimization_notes": "Basic estimation - requires detailed analysis"
+                        } for i in range(len(databases))
+                    ]
+                },
+                "storage": {
+                    "total_monthly_cost": storage_monthly_cost,
+                    "total_annual_cost": storage_monthly_cost * 12,
+                    "storage_recommendations": [
+                        {
+                            "share_name": f"FileShare-{i+1}",
+                            "size_gb": 500,
+                            "recommended_storage": "EFS",
+                            "access_pattern": "General Purpose",
+                            "monthly_cost": 50,
+                            "annual_cost": 600,
+                            "optimization_notes": "Basic estimation - requires detailed analysis"
+                        } for i in range(len(file_shares))
+                    ]
+                },
+                "total_monthly_cost": total_monthly,
+                "total_annual_cost": total_annual
+            },
+            "migration_services": {
+                "total_professional_services_cost": migration_cost,
+                "resource_breakdown": [
+                    {
+                        "role": "Cloud Architect",
+                        "rate_per_hour": 150,
+                        "hours_per_week": 20,
+                        "duration_weeks": 4,
+                        "total_hours": 80,
+                        "total_cost": migration_cost * 0.6
+                    },
+                    {
+                        "role": "Migration Specialist",
+                        "rate_per_hour": 125,
+                        "hours_per_week": 20,
+                        "duration_weeks": 4,
+                        "total_hours": 80,
+                        "total_cost": migration_cost * 0.4
+                    }
+                ]
+            },
+            "ai_insights": {
+                "confidence_level": 0.65,
+                "cost_optimization_tips": [
+                    "Consider reserved instances for 20-72% savings",
+                    "Use auto-scaling to optimize costs",
+                    "Implement S3 Intelligent Tiering for storage",
+                    "Right-size instances based on actual usage"
+                ],
+                "potential_savings": {
+                    "percentage": 25,
+                    "annual_amount": total_annual * 0.25
+                },
+                "recommendations": [
+                    "Detailed assessment needed for accurate pricing",
+                    "Consider phased migration approach",
+                    "Implement cost monitoring from day one"
+                ],
+                "ai_model_used": "fallback",
+                "fallback_used": True
+            }
+        }
+
+    def _fallback_migration_strategy(self, infrastructure_data: Dict[str, Any], cloud_provider: str, complexity: str) -> Dict[str, Any]:
+        """Fallback migration strategy when AI is not available"""
+        servers = infrastructure_data.get('servers', [])
+        databases = infrastructure_data.get('databases', [])
+        file_shares = infrastructure_data.get('file_shares', [])
+        
+        total_components = len(servers) + len(databases) + len(file_shares)
+        duration_weeks = max(8, total_components * 2)
+        
+        return {
+            "migration_approach": {
+                "overall_strategy": "Lift and Shift",
+                "estimated_duration": f"{duration_weeks} weeks",
+                "complexity_level": complexity.title(),
+                "rationale": f"Based on {total_components} components requiring migration"
+            },
+            "component_strategies": {
+                "servers": [
+                    {
+                        "server_id": f"Server-{i+1}",
+                        "migration_type": "Rehost (Lift and Shift)",
+                        "current_state": "On-premise server",
+                        "target_state": "AWS EC2 instance",
+                        "complexity": "Medium",
+                        "estimated_effort": "4-8 hours",
+                        "rationale": "Standard lift and shift approach"
+                    } for i in range(len(servers))
+                ],
+                "databases": [
+                    {
+                        "db_name": f"Database-{i+1}",
+                        "current_engine": "MySQL",
+                        "target_engine": "RDS MySQL",
+                        "migration_type": "Database Migration Service",
+                        "approach": "Online migration with minimal downtime",
+                        "complexity": "Medium",
+                        "data_migration_strategy": "Initial sync + CDC",
+                        "downtime_estimate": "1-2 hours"
+                    } for i in range(len(databases))
+                ],
+                "storage": [
+                    {
+                        "share_name": f"FileShare-{i+1}",
+                        "current_type": "Windows File Share",
+                        "target_type": "Amazon FSx",
+                        "migration_method": "AWS DataSync",
+                        "sync_strategy": "Initial copy + incremental sync",
+                        "cutover_approach": "DNS cutover"
+                    } for i in range(len(file_shares))
+                ]
+            },
+            "migration_phases": [
+                {
+                    "phase": 1,
+                    "name": "Assessment & Planning",
+                    "duration": "4 weeks",
+                    "components": ["Infrastructure Discovery", "Dependency Mapping", "Risk Assessment"],
+                    "dependencies": [],
+                    "risks": ["Incomplete inventory", "Missing dependencies"],
+                    "success_criteria": ["Complete infrastructure catalog", "Migration plan approved"]
+                },
+                {
+                    "phase": 2,
+                    "name": "Foundation Setup",
+                    "duration": "3 weeks",
+                    "components": ["AWS Account Setup", "Network Configuration", "Security Baseline"],
+                    "dependencies": ["Phase 1"],
+                    "risks": ["Network connectivity", "Security compliance"],
+                    "success_criteria": ["Landing zone ready", "Security controls validated"]
+                },
+                {
+                    "phase": 3,
+                    "name": "Data Migration",
+                    "duration": f"{max(4, len(databases) * 2)} weeks",
+                    "components": ["Database Migration", "File Share Migration", "Data Validation"],
+                    "dependencies": ["Phase 2"],
+                    "risks": ["Data corruption", "Extended sync time"],
+                    "success_criteria": ["Data sync established", "Validation complete"]
+                },
+                {
+                    "phase": 4,
+                    "name": "Application Migration",
+                    "duration": f"{max(4, len(servers) * 1)} weeks",
+                    "components": ["Server Migration", "Application Testing", "Performance Tuning"],
+                    "dependencies": ["Phase 2", "Phase 3"],
+                    "risks": ["Application compatibility", "Performance issues"],
+                    "success_criteria": ["Applications operational", "Performance validated"]
+                },
+                {
+                    "phase": 5,
+                    "name": "Cutover & Validation",
+                    "duration": "2 weeks",
+                    "components": ["Production Cutover", "User Acceptance Testing", "Go-Live Support"],
+                    "dependencies": ["Phase 4"],
+                    "risks": ["User adoption", "Rollback scenarios"],
+                    "success_criteria": ["Production stable", "Users trained", "Support documented"]
+                }
+            ],
+            "recommendations": {
+                "quick_wins": [
+                    "Start with non-critical systems for proof of concept",
+                    "Implement AWS cost optimization tools early",
+                    "Establish monitoring and alerting from day one"
+                ],
+                "cost_optimization": [
+                    "Right-size instances based on actual usage",
+                    "Implement reserved instances for predictable workloads",
+                    "Use spot instances for development environments"
+                ],
+                "performance_improvements": [
+                    "Leverage AWS-native services for better performance",
+                    "Implement CDN for web applications",
+                    "Optimize database configurations for cloud environment"
+                ],
+                "modernization_opportunities": [
+                    "Consider containerization for legacy applications",
+                    "Implement auto-scaling for variable workloads",
+                    "Evaluate serverless options for specific functions"
+                ]
+            },
+            "risk_assessment": {
+                "high_risks": [
+                    "Data loss during migration",
+                    "Extended downtime during cutover",
+                    "Application compatibility issues"
+                ],
+                "medium_risks": [
+                    "Network performance degradation",
+                    "User training requirements",
+                    "Cost overruns"
+                ],
+                "low_risks": [
+                    "Minor configuration adjustments",
+                    "Documentation updates",
+                    "Monitoring setup"
+                ],
+                "mitigation_strategies": {
+                    "Data loss": "Implement comprehensive backup and validation procedures",
+                    "Extended downtime": "Plan rollback procedures and conduct dress rehearsals",
+                    "Application compatibility": "Thorough testing in staging environment"
+                }
+            },
+            "ai_insights": {
+                "confidence_level": 0.70,
+                "ai_model_used": "fallback",
+                "fallback_used": True,
+                "strategic_recommendations": [
+                    "Consider phased approach to minimize risk",
+                    "Invest in team training for cloud technologies",
+                    "Establish cloud governance early"
+                ]
+            }
         }

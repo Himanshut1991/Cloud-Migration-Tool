@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Final Components</title>
+</head>
+<body>
+    <h1>Testing Final Component API Calls</h1>
+    
+    <div>
+        <h2>Cost Estimation Test</h2>
+        <button onclick="testCostEstimation()">Test Cost Estimation</button>
+        <pre id="costResult"></pre>
+    </div>
+    
+    <div>
+        <h2>Migration Strategy Test</h2>
+        <button onclick="testMigrationStrategy()">Test Migration Strategy</button>
+        <pre id="strategyResult"></pre>
+    </div>
+
+    <script>
+        async function testCostEstimation() {
+            const resultDiv = document.getElementById('costResult');
+            resultDiv.textContent = 'Testing...';
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/cost-estimation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        cloud_provider: 'AWS',
+                        target_region: 'us-east-1',
+                        migration_type: 'lift_and_shift'
+                    })
+                });
+                
+                console.log('Cost estimation response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                resultDiv.textContent = `SUCCESS - Status: ${response.status}\n\n` + JSON.stringify(data, null, 2);
+            } catch (error) {
+                console.error('Cost estimation error:', error);
+                resultDiv.textContent = `ERROR: ${error.message}`;
+            }
+        }
+        
+        async function testMigrationStrategy() {
+            const resultDiv = document.getElementById('strategyResult');
+            resultDiv.textContent = 'Testing...';
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/migration-strategy', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        cloud_provider: 'AWS',
+                        target_region: 'us-east-1',
+                        migration_complexity: 'medium'
+                    })
+                });
+                
+                console.log('Migration strategy response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                resultDiv.textContent = `SUCCESS - Status: ${response.status}\n\n` + JSON.stringify(data, null, 2);
+            } catch (error) {
+                console.error('Migration strategy error:', error);
+                resultDiv.textContent = `ERROR: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

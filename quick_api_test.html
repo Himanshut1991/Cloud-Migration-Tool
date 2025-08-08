@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quick API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        pre { background: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .result { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+    </style>
+</head>
+<body>
+    <h1>API Structure Test</h1>
+    
+    <button onclick="testCost()">Test Cost Estimation</button>
+    <button onclick="testStrategy()">Test Migration Strategy</button>
+    
+    <div id="results"></div>
+
+    <script>
+        async function testCost() {
+            try {
+                const response = await fetch('http://localhost:5000/api/cost-estimation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: '{}'
+                });
+                const data = await response.json();
+                
+                const hasCorrectStructure = 
+                    data.cloud_infrastructure && 
+                    data.migration_services && 
+                    data.grand_total;
+                
+                document.getElementById('results').innerHTML = `
+                    <div class="result ${hasCorrectStructure ? 'success' : 'error'}">
+                        <h3>Cost Estimation API</h3>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <p><strong>Has cloud_infrastructure:</strong> ${!!data.cloud_infrastructure}</p>
+                        <p><strong>Has migration_services:</strong> ${!!data.migration_services}</p>
+                        <p><strong>Has grand_total:</strong> ${!!data.grand_total}</p>
+                        <p><strong>Structure Match:</strong> ${hasCorrectStructure ? '✅ CORRECT' : '❌ INCORRECT'}</p>
+                        <pre>${JSON.stringify(data, null, 2).substring(0, 1000)}...</pre>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('results').innerHTML = `
+                    <div class="result error">
+                        <h3>Cost Estimation API Error</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function testStrategy() {
+            try {
+                const response = await fetch('http://localhost:5000/api/migration-strategy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: '{}'
+                });
+                const data = await response.json();
+                
+                const hasCorrectStructure = 
+                    data.migration_approach && 
+                    data.component_strategies && 
+                    data.migration_phases;
+                
+                document.getElementById('results').innerHTML = `
+                    <div class="result ${hasCorrectStructure ? 'success' : 'error'}">
+                        <h3>Migration Strategy API</h3>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <p><strong>Has migration_approach:</strong> ${!!data.migration_approach}</p>
+                        <p><strong>Has component_strategies:</strong> ${!!data.component_strategies}</p>
+                        <p><strong>Has migration_phases:</strong> ${!!data.migration_phases}</p>
+                        <p><strong>Structure Match:</strong> ${hasCorrectStructure ? '✅ CORRECT' : '❌ INCORRECT'}</p>
+                        <pre>${JSON.stringify(data, null, 2).substring(0, 1000)}...</pre>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('results').innerHTML = `
+                    <div class="result error">
+                        <h3>Migration Strategy API Error</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

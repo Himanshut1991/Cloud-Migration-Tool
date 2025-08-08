@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Frontend Cost Display</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .response { background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .ai-insights { background: #e6f7ff; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e9; color: #2e7d32; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test Frontend Cost Display</h1>
+        <button onclick="testCostEstimation()">Test Cost Estimation API</button>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        async function testCostEstimation() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>Testing cost estimation API...</p>';
+
+            try {
+                console.log('Making request to cost estimation API...');
+                
+                const response = await fetch('http://localhost:5000/api/cost-estimation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        cloud_provider: 'AWS',
+                        target_region: 'us-east-1',
+                        migration_type: 'lift_and_shift'
+                    })
+                });
+
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('Received data:', data);
+
+                let html = '<div class="response success"><h3>✅ API Response Successful</h3>';
+                html += '<h4>Response Structure:</h4>';
+                html += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                
+                // Test AI insights specifically
+                if (data.ai_insights) {
+                    html += '<div class="ai-insights"><h4>🤖 AI Insights Found:</h4>';
+                    html += `<p><strong>Confidence:</strong> ${data.ai_insights.confidence_level * 100}%</p>`;
+                    html += `<p><strong>Model:</strong> ${data.ai_insights.ai_model_used}</p>`;
+                    html += `<p><strong>Fallback Used:</strong> ${data.ai_insights.fallback_used}</p>`;
+                    html += `<p><strong>Tips Count:</strong> ${data.ai_insights.cost_optimization_tips?.length || 0}</p>`;
+                    html += `<p><strong>Recommendations Count:</strong> ${data.ai_insights.recommendations?.length || 0}</p>`;
+                    html += '</div>';
+                } else {
+                    html += '<div class="error"><h4>❌ No AI Insights Found</h4></div>';
+                }
+
+                html += '</div>';
+                resultsDiv.innerHTML = html;
+
+            } catch (error) {
+                console.error('Error:', error);
+                resultsDiv.innerHTML = `
+                    <div class="response error">
+                        <h3>❌ Error</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Auto-run the test
+        document.addEventListener('DOMContentLoaded', () => {
+            testCostEstimation();
+        });
+    </script>
+</body>
+</html>

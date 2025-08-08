@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Cost Estimation Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .card { background: white; padding: 20px; margin: 15px 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .ai-status { padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #52c41a; background: #f6ffed; }
+        .fallback-status { padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #faad14; background: #fffbe6; }
+        .error { background: #fff2f0; border-left-color: #ff4d4f; color: #a8071a; }
+        .loading { text-align: center; padding: 50px; }
+        .tag { display: inline-block; padding: 3px 8px; margin: 2px; border-radius: 4px; font-size: 12px; }
+        .tag-green { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+        .tag-orange { background: #fff7e6; color: #fa8c16; border: 1px solid #ffd591; }
+        .tag-purple { background: #f9f0ff; color: #722ed1; border: 1px solid #d3adf7; }
+        .stats { display: flex; gap: 20px; margin: 20px 0; }
+        .stat { flex: 1; text-align: center; }
+        .stat-value { font-size: 24px; font-weight: bold; color: #1890ff; }
+        .stat-label { color: #666; font-size: 14px; }
+        pre { background: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>🔍 Frontend Cost Estimation Debug</h1>
+            <p>This page replicates the exact fetch request used by React CostEstimationSimple.tsx</p>
+            <button onclick="fetchCostEstimation()" id="fetchBtn">Fetch Cost Estimation</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        let currentData = null;
+
+        async function fetchCostEstimation() {
+            const resultsDiv = document.getElementById('results');
+            const fetchBtn = document.getElementById('fetchBtn');
+            
+            console.log('Fetching cost estimation...');
+            
+            fetchBtn.disabled = true;
+            fetchBtn.textContent = 'Loading...';
+            
+            resultsDiv.innerHTML = `
+                <div class="card">
+                    <div class="loading">
+                        <div>🔄 Calculating cost estimation...</div>
+                    </div>
+                </div>
+            `;
+
+            try {
+                // Exact same fetch as React component
+                const response = await fetch('http://localhost:5000/api/cost-estimation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        cloud_provider: 'AWS',
+                        target_region: 'us-east-1',
+                        migration_type: 'lift_and_shift'
+                    })
+                });
+                
+                console.log('Cost estimation response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch cost estimation: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                console.log('Cost estimation data:', result);
+                currentData = result;
+                displayResults(result);
+                
+            } catch (err) {
+                console.error('Cost estimation error:', err);
+                resultsDiv.innerHTML = `
+                    <div class="card error">
+                        <h3>❌ Error Loading Cost Estimation</h3>
+                        <p>${err.message}</p>
+                        <button onclick="fetchCostEstimation()">Retry</button>
+                    </div>
+                `;
+            } finally {
+                fetchBtn.disabled = false;
+                fetchBtn.textContent = 'Fetch Cost Estimation';
+            }
+        }
+
+        function formatCurrency(amount) {
+            return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+        }
+
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            
+            let html = `
+                <div class="card">
+                    <h2>💰 Cost Estimation Analysis</h2>
+                    
+                    <div class="stats">
+                        <div class="stat">
+                            <div class="stat-value">${formatCurrency(data.cloud_infrastructure.total_monthly_cost)}</div>
+                            <div class="stat-label">Monthly Cloud Cost</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">${formatCurrency(data.grand_total.one_time_migration_cost)}</div>
+                            <div class="stat-label">Migration Cost (One-time)</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">${formatCurrency(data.cloud_infrastructure.total_annual_cost)}</div>
+                            <div class="stat-label">Annual Cloud Cost</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // AI Insights Section
+            if (data.ai_insights) {
+                const confidence = Math.round(data.ai_insights.confidence_level * 100);
+                const statusClass = data.ai_insights.fallback_used ? 'fallback-status' : 'ai-status';
+                
+                html += `
+                    <div class="card">
+                        <h3>🤖 AI Cost Analysis 
+                            <span class="tag ${data.ai_insights.fallback_used ? 'tag-orange' : 'tag-green'}">${confidence}% Confidence</span>
+                `;
+                
+                if (data.ai_insights.fallback_used) {
+                    html += `<span class="tag tag-orange">Rule-based</span>`;
+                } else {
+                    html += `<span class="tag tag-purple">${data.ai_insights.ai_model_used}</span>`;
+                }
+                
+                html += `</h3>`;
+                
+                if (data.ai_insights.fallback_used) {
+                    html += `
+                        <div class="fallback-status">
+                            <strong>Using Advanced Rule-based Analysis</strong><br>
+                            AI services are temporarily unavailable. Using intelligent rule-based cost optimization recommendations.
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="ai-status">
+                            <strong>AI-Powered Cost Analysis Active</strong><br>
+                            Analysis powered by ${data.ai_insights.ai_model_used} with ${confidence}% confidence level.
+                        </div>
+                    `;
+                }
+                
+                html += `
+                        <div style="margin-top: 20px;">
+                            <h4>💡 Cost Optimization Tips:</h4>
+                            <ul>
+                `;
+                
+                data.ai_insights.cost_optimization_tips.forEach((tip, index) => {
+                    html += `<li><strong>#${index + 1}</strong> ${tip}</li>`;
+                });
+                
+                html += `
+                            </ul>
+                            
+                            <h4>🎯 AI Recommendations:</h4>
+                            <ul>
+                `;
+                
+                data.ai_insights.recommendations.forEach((rec) => {
+                    html += `<li>${rec}</li>`;
+                });
+                
+                html += `</ul>`;
+                
+                if (data.ai_insights.potential_savings) {
+                    html += `
+                            <h4>💰 Potential Savings:</h4>
+                            <div class="stats">
+                                <div class="stat">
+                                    <div class="stat-value">${formatCurrency(data.ai_insights.potential_savings.annual_amount)}</div>
+                                    <div class="stat-label">Potential Annual Savings</div>
+                                </div>
+                                <div class="stat">
+                                    <div class="stat-value">${data.ai_insights.potential_savings.percentage}%</div>
+                                    <div class="stat-label">Savings Percentage</div>
+                                </div>
+                            </div>
+                    `;
+                }
+                
+                html += `</div></div>`;
+            } else {
+                html += `
+                    <div class="card error">
+                        <h3>❌ No AI Insights Found</h3>
+                        <p>The response did not contain ai_insights data.</p>
+                    </div>
+                `;
+            }
+
+            // Raw Data Section
+            html += `
+                <div class="card">
+                    <h3>🔍 Raw Response Data</h3>
+                    <details>
+                        <summary>Click to see full API response</summary>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </details>
+                </div>
+            `;
+
+            resultsDiv.innerHTML = html;
+        }
+
+        // Auto-fetch on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchCostEstimation();
+        });
+    </script>
+</body>
+</html>

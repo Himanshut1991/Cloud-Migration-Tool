@@ -674,14 +674,36 @@ const Timeline: React.FC = () => {
               Timeline generated from your inventory and configuration settings.
             </Paragraph>
           </div>
-          <Button 
-            type="primary" 
-            icon={<ReloadOutlined />} 
-            onClick={fetchTimeline}
-            loading={loading}
-          >
-            Regenerate Timeline
-          </Button>
+          <Space>
+            <div>
+              <label style={{ marginRight: 8 }}>Project Start Date:</label>
+              <DatePicker
+                value={customStartDate}
+                onChange={(date) => {
+                  setCustomStartDate(date);
+                  if (date) {
+                    // Calculate new end date and update timeline
+                    const newEndDate = date.add(16, 'weeks').format('YYYY-MM-DD');
+                    setCalculatedEndDate(newEndDate);
+                    
+                    // Trigger refetch with new start date
+                    fetchTimeline();
+                    
+                    message.success(`Timeline updated: Start date set to ${date.format('YYYY-MM-DD')}, End date: ${newEndDate}`);
+                  }
+                }}
+                placeholder="Select start date"
+              />
+            </div>
+            <Button 
+              type="primary" 
+              icon={<ReloadOutlined />} 
+              onClick={fetchTimeline}
+              loading={loading}
+            >
+              Regenerate Timeline
+            </Button>
+          </Space>
         </div>
         {!isRealData && (
           <Alert

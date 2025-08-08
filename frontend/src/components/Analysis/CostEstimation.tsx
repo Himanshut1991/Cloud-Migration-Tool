@@ -110,18 +110,52 @@ const CostEstimation: React.FC = () => {
   const [aiStatus, setAiStatus] = useState<any>(null);
 
   const fetchCostEstimation = async () => {
+    console.log('🔧 CostEstimation: Starting fetch...');
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('http://localhost:5000/api/cost-estimation');
+      // Get current inventory data for cost estimation
+      const requestData = {
+        cloud_provider: 'AWS',
+        target_region: 'us-east-1',
+        migration_type: 'lift_and_shift'
+      };
+      
+      console.log('🔧 CostEstimation: Request data:', requestData);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      console.log('🔧 CostEstimation: Making fetch request...');
+      const response = await fetch('http://localhost:5000/api/cost-estimation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      console.log('🔧 CostEstimation: Response status:', response.status);
+      console.log('🔧 CostEstimation: Response headers:', Object.fromEntries(response.headers));
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch cost estimation');
+        throw new Error(`Failed to fetch cost estimation: ${response.status}`);
       }
       const result = await response.json();
+      console.log('🔧 CostEstimation: Data received:', result);
+      console.log('🔧 CostEstimation: Setting data and clearing error...');
       setData(result);
+      setError(null); // Explicitly clear any previous error
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      console.error('🔧 CostEstimation: Error occurred:', err);
+      console.error('🔧 CostEstimation: Error message:', errorMessage);
+      setError(`Failed to fetch cost estimation: ${errorMessage}`);
     } finally {
+      console.log('🔧 CostEstimation: Setting loading to false');
       setLoading(false);
     }
   };

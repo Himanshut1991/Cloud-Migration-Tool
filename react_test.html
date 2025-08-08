@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React Component Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-container { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .loading { background-color: #fff3cd; color: #856404; }
+        button { padding: 10px 20px; margin: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; max-height: 300px; }
+    </style>
+</head>
+<body>
+    <h1>Exact React Component Simulation</h1>
+    <p>This mimics exactly what the React components are doing</p>
+
+    <div class="test-container">
+        <h2>💰 Cost Estimation Test</h2>
+        <div id="cost-status" class="status">Ready</div>
+        <button onclick="testCostEstimation()">Test Like React Component</button>
+        <div id="cost-data"></div>
+    </div>
+
+    <div class="test-container">
+        <h2>🚀 Migration Strategy Test</h2>
+        <div id="strategy-status" class="status">Ready</div>
+        <button onclick="testMigrationStrategy()">Test Like React Component</button>
+        <div id="strategy-data"></div>
+    </div>
+
+    <script>
+        // Exact replication of CostEstimation component fetch logic
+        async function testCostEstimation() {
+            const statusEl = document.getElementById('cost-status');
+            const dataEl = document.getElementById('cost-data');
+            
+            statusEl.textContent = 'Loading cost estimation...';
+            statusEl.className = 'status loading';
+            
+            try {
+                // EXACT same request as React component
+                const requestData = {
+                    cloud_provider: 'AWS',
+                    target_region: 'us-east-1',
+                    migration_type: 'lift_and_shift'
+                };
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+                
+                console.log('Making request to cost estimation...');
+                const response = await fetch('http://localhost:5000/api/cost-estimation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestData),
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                console.log('Response status:', response.status);
+                console.log('Response headers:', Object.fromEntries(response.headers));
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch cost estimation: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                console.log('Cost estimation data received:', result);
+                
+                // Check if it has the expected structure
+                const hasCorrectStructure = 
+                    result.cloud_infrastructure && 
+                    result.migration_services && 
+                    result.grand_total;
+                
+                if (hasCorrectStructure) {
+                    statusEl.textContent = '✅ SUCCESS - Data structure matches React component expectations';
+                    statusEl.className = 'status success';
+                    
+                    dataEl.innerHTML = `
+                        <h4>Key Data Points:</h4>
+                        <ul>
+                            <li>Total Annual Cost: $${result.grand_total.annual_cloud_cost}</li>
+                            <li>One-time Migration: $${result.grand_total.one_time_migration_cost}</li>
+                            <li>Server Recommendations: ${result.cloud_infrastructure.servers.server_recommendations.length}</li>
+                            <li>Database Recommendations: ${result.cloud_infrastructure.databases.database_recommendations.length}</li>
+                        </ul>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    `;
+                } else {
+                    statusEl.textContent = '❌ STRUCTURE MISMATCH - React component will fail';
+                    statusEl.className = 'status error';
+                    dataEl.innerHTML = `<pre>${JSON.stringify(result, null, 2)}</pre>`;
+                }
+                
+            } catch (err) {
+                const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+                console.error('Cost estimation error:', err);
+                statusEl.textContent = `❌ ERROR: ${errorMessage}`;
+                statusEl.className = 'status error';
+                dataEl.innerHTML = `<p>Error: ${errorMessage}</p>`;
+            }
+        }
+        
+        // Exact replication of MigrationStrategy component fetch logic
+        async function testMigrationStrategy() {
+            const statusEl = document.getElementById('strategy-status');
+            const dataEl = document.getElementById('strategy-data');
+            
+            statusEl.textContent = 'Loading migration strategy...';
+            statusEl.className = 'status loading';
+            
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+                
+                console.log('Making request to migration strategy...');
+                const response = await fetch('http://localhost:5000/api/migration-strategy', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        analysis_type: 'comprehensive'
+                    }),
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                console.log('Response status:', response.status);
+                console.log('Response headers:', Object.fromEntries(response.headers));
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch migration strategy: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                console.log('Migration strategy data received:', result);
+                
+                // Check if it has the expected structure
+                const hasCorrectStructure = 
+                    result.migration_approach && 
+                    result.component_strategies && 
+                    result.migration_phases;
+                
+                if (hasCorrectStructure) {
+                    statusEl.textContent = '✅ SUCCESS - Data structure matches React component expectations';
+                    statusEl.className = 'status success';
+                    
+                    dataEl.innerHTML = `
+                        <h4>Key Data Points:</h4>
+                        <ul>
+                            <li>Strategy: ${result.migration_approach.overall_strategy}</li>
+                            <li>Duration: ${result.migration_approach.estimated_duration}</li>
+                            <li>Servers: ${result.component_strategies.servers.length}</li>
+                            <li>Databases: ${result.component_strategies.databases.length}</li>
+                            <li>Phases: ${result.migration_phases.length}</li>
+                        </ul>
+                        <pre>${JSON.stringify(result, null, 2).substring(0, 1500)}...</pre>
+                    `;
+                } else {
+                    statusEl.textContent = '❌ STRUCTURE MISMATCH - React component will fail';
+                    statusEl.className = 'status error';
+                    dataEl.innerHTML = `<pre>${JSON.stringify(result, null, 2)}</pre>`;
+                }
+                
+            } catch (err) {
+                const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+                console.error('Migration strategy error:', err);
+                statusEl.textContent = `❌ ERROR: ${errorMessage}`;
+                statusEl.className = 'status error';
+                dataEl.innerHTML = `<p>Error: ${errorMessage}</p>`;
+            }
+        }
+        
+        // Auto-test when page loads
+        window.onload = function() {
+            console.log('Testing exact React component behavior...');
+        };
+    </script>
+</body>
+</html>

@@ -46,6 +46,7 @@ const ExportReports: React.FC = () => {
   const [exports, setExports] = useState<ExportResult[]>([]);
   const [previewVisible, setPreviewVisible] = useState(false);
   const [selectedExport, setSelectedExport] = useState<ExportResult | null>(null);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>(['cost_estimation', 'migration_strategy', 'timeline']);
 
   const exportFormats = [
     {
@@ -74,6 +75,24 @@ const ExportReports: React.FC = () => {
     }
   ];
 
+  const reportTypes = [
+    {
+      key: 'cost_estimation',
+      title: 'Cost Estimation',
+      description: 'Detailed cost analysis and optimization recommendations'
+    },
+    {
+      key: 'migration_strategy',
+      title: 'Migration Strategy',
+      description: 'Migration approach, phases, and component strategies'
+    },
+    {
+      key: 'timeline',
+      title: 'Timeline & Phases',
+      description: 'Project timeline with milestones and dependencies'
+    }
+  ];
+
   const handleExport = async (format: string) => {
     setLoading(format);
     try {
@@ -82,7 +101,10 @@ const ExportReports: React.FC = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ format }),
+        body: JSON.stringify({ 
+          format,
+          types: selectedTypes 
+        }),
       });
 
       if (!response.ok) {
@@ -230,6 +252,69 @@ const ExportReports: React.FC = () => {
         </Row>
       </Card>
 
+      {/* Report Type Selection */}
+      <Card title="Select Report Contents" style={{ marginBottom: '24px' }}>
+        <Paragraph>
+          Choose which analysis types to include in your report. You can select multiple types 
+          to create a comprehensive migration document.
+        </Paragraph>
+        <Row gutter={[16, 16]}>
+          {reportTypes.map((type) => (
+            <Col xs={24} md={8} key={type.key}>
+              <Card 
+                size="small" 
+                style={{ 
+                  border: selectedTypes.includes(type.key) ? '2px solid #1890ff' : '1px solid #d9d9d9',
+                  backgroundColor: selectedTypes.includes(type.key) ? '#f6ffed' : 'white'
+                }}
+              >
+                <div 
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => {
+                    if (selectedTypes.includes(type.key)) {
+                      setSelectedTypes(prev => prev.filter(t => t !== type.key));
+                    } else {
+                      setSelectedTypes(prev => [...prev, type.key]);
+                    }
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedTypes.includes(type.key)}
+                      onChange={() => {}} 
+                      style={{ marginRight: 8 }}
+                    />
+                    <Text strong>{type.title}</Text>
+                  </div>
+                  <Text type="secondary" style={{ fontSize: '12px' }}>
+                    {type.description}
+                  </Text>
+                </div>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+        <div style={{ marginTop: 16 }}>
+          <Tag color="blue">{selectedTypes.length} of {reportTypes.length} types selected</Tag>
+          <Button 
+            type="link" 
+            size="small"
+            onClick={() => setSelectedTypes(reportTypes.map(t => t.key))}
+            style={{ marginLeft: 8 }}
+          >
+            Select All
+          </Button>
+          <Button 
+            type="link" 
+            size="small"
+            onClick={() => setSelectedTypes([])}
+          >
+            Clear All
+          </Button>
+        </div>
+      </Card>
+
       {/* Export Format Cards */}
       <Title level={3}>Choose Export Format</Title>
       <Row gutter={[24, 24]} style={{ marginBottom: '32px' }}>
@@ -243,6 +328,7 @@ const ExportReports: React.FC = () => {
                   type="primary"
                   icon={<DownloadOutlined />}
                   loading={loading === format.key}
+                  disabled={selectedTypes.length === 0}
                   onClick={() => handleExport(format.key)}
                   style={{ backgroundColor: format.color, borderColor: format.color }}
                 >

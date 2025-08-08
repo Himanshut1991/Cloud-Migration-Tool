@@ -19,31 +19,79 @@ import {
   HddOutlined,
   ReloadOutlined,
   RobotOutlined,
-  DesktopOutlined
+  DesktopOutlined,
+  UserOutlined,
+  BarChartOutlined
 } from '@ant-design/icons';
 
 const { Title, Paragraph, Text } = Typography;
 
 interface SimpleCostEstimationData {
-  total_monthly_cost: number;
-  total_migration_cost: number;
-  cost_breakdown: {
-    compute: number;
-    storage: number;
-    database: number;
+  grand_total: {
+    annual_cloud_cost: number;
+    one_time_migration_cost: number;
+    total_first_year_cost: number;
   };
-  resource_details: {
-    servers: number;
-    databases: number;
-    file_shares: number;
+  cloud_infrastructure: {
+    servers: {
+      total_monthly_cost: number;
+      total_annual_cost: number;
+      server_recommendations: Array<{
+        server_id: string;
+        current_specs: string;
+        recommended_instance: string;
+        monthly_cost: number;
+        annual_cost: number;
+      }>;
+    };
+    databases: {
+      total_monthly_cost: number;
+      total_annual_cost: number;
+      database_recommendations: Array<{
+        db_name: string;
+        db_type: string;
+        recommended_instance: string;
+        size_gb: number;
+        monthly_cost: number;
+        annual_cost: number;
+      }>;
+    };
+    storage: {
+      total_monthly_cost: number;
+      total_annual_cost: number;
+      storage_recommendations: Array<{
+        share_name: string;
+        size_gb: number;
+        recommended_storage: string;
+        access_pattern: string;
+        monthly_cost: number;
+        annual_cost: number;
+      }>;
+    };
+    total_monthly_cost: number;
+    total_annual_cost: number;
   };
-  ai_insights: {
+  migration_services: {
+    total_professional_services_cost: number;
+    resource_breakdown: Array<{
+      role: string;
+      rate_per_hour: number;
+      hours_per_week: number;
+      duration_weeks: number;
+      total_hours: number;
+      total_cost: number;
+    }>;
+  };
+  ai_insights?: {
     confidence_level: number;
+    cost_optimization_tips: string[];
+    potential_savings: {
+      percentage: number;
+      annual_amount: number;
+    };
     recommendations: string[];
+    ai_model_used: string;
     fallback_used: boolean;
-    ai_available: boolean;
-    ai_status?: string;
-    cost_optimization_tips?: string[];
   };
 }
 
@@ -51,14 +99,23 @@ const CostEstimationSimple: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<SimpleCostEstimationData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [aiStatus, setAiStatus] = useState<any>(null);
 
   const fetchCostEstimation = async () => {
     console.log('Fetching cost estimation...');
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('http://localhost:5000/api/cost-estimation');
+      const response = await fetch('http://localhost:5000/api/cost-estimation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          cloud_provider: 'AWS',
+          target_region: 'us-east-1',
+          migration_type: 'lift_and_shift'
+        })
+      });
       console.log('Cost estimation response status:', response.status);
       
       if (!response.ok) {
@@ -76,21 +133,8 @@ const CostEstimationSimple: React.FC = () => {
     }
   };
 
-  const fetchAiStatus = async () => {
-    try {
-      const response = await fetch('http://localhost:5000/api/ai-status');
-      if (response.ok) {
-        const status = await response.json();
-        setAiStatus(status);
-      }
-    } catch (err) {
-      console.warn('Failed to fetch AI status:', err);
-    }
-  };
-
   useEffect(() => {
     fetchCostEstimation();
-    fetchAiStatus();
   }, []);
 
   const formatCurrency = (amount: number) => 
@@ -124,16 +168,6 @@ const CostEstimationSimple: React.FC = () => {
                   <DollarOutlined style={{ marginRight: 8 }} />
                   Cost Estimation Analysis
                 </Title>
-                {aiStatus && (
-                  <div style={{ marginTop: 8 }}>
-                    <Tag color={aiStatus.ai_available ? 'green' : 'orange'}>
-                      {aiStatus.ai_available ? '🤖 AI-Powered' : '📋 Rule-Based'} Analysis
-                    </Tag>
-                    <Text type="secondary" style={{ marginLeft: 8, fontSize: '12px' }}>
-                      Provider: {aiStatus.provider || 'Rule-based fallback'}
-                    </Text>
-                  </div>
-                )}
               </Col>
               <Col>
                 <Button 
@@ -141,7 +175,6 @@ const CostEstimationSimple: React.FC = () => {
                   icon={<ReloadOutlined />} 
                   onClick={() => {
                     fetchCostEstimation();
-                    fetchAiStatus();
                   }}
                   loading={loading}
                 >
@@ -168,7 +201,7 @@ const CostEstimationSimple: React.FC = () => {
               <Col xs={24} sm={12} lg={8}>
                 <Statistic
                   title="Monthly Cloud Cost"
-                  value={data.total_monthly_cost}
+                  value={data.cloud_infrastructure.total_monthly_cost}
                   formatter={(value) => formatCurrency(Number(value))}
                   prefix={<CloudOutlined />}
                 />
@@ -176,7 +209,7 @@ const CostEstimationSimple: React.FC = () => {
               <Col xs={24} sm={12} lg={8}>
                 <Statistic
                   title="Migration Cost (One-time)"
-                  value={data.total_migration_cost}
+                  value={data.grand_total.one_time_migration_cost}
                   formatter={(value) => formatCurrency(Number(value))}
                   prefix={<RobotOutlined />}
                 />
@@ -184,7 +217,7 @@ const CostEstimationSimple: React.FC = () => {
               <Col xs={24} sm={12} lg={8}>
                 <Statistic
                   title="Annual Cloud Cost"
-                  value={data.total_monthly_cost * 12}
+                  value={data.cloud_infrastructure.total_annual_cost}
                   formatter={(value) => formatCurrency(Number(value))}
                   prefix={<DollarOutlined />}
                 />
@@ -198,7 +231,7 @@ const CostEstimationSimple: React.FC = () => {
               <Col xs={24} sm={8}>
                 <Statistic
                   title="Compute Services"
-                  value={data.cost_breakdown.compute}
+                  value={data.cloud_infrastructure.servers.total_monthly_cost}
                   formatter={(value) => formatCurrency(Number(value))}
                   prefix={<DesktopOutlined />}
                 />
@@ -207,7 +240,7 @@ const CostEstimationSimple: React.FC = () => {
               <Col xs={24} sm={8}>
                 <Statistic
                   title="Database Services"
-                  value={data.cost_breakdown.database}
+                  value={data.cloud_infrastructure.databases.total_monthly_cost}
                   formatter={(value) => formatCurrency(Number(value))}
                   prefix={<DatabaseOutlined />}
                 />
@@ -216,7 +249,7 @@ const CostEstimationSimple: React.FC = () => {
               <Col xs={24} sm={8}>
                 <Statistic
                   title="Storage Services"
-                  value={data.cost_breakdown.storage}
+                  value={data.cloud_infrastructure.storage.total_monthly_cost}
                   formatter={(value) => formatCurrency(Number(value))}
                   prefix={<HddOutlined />}
                 />
@@ -235,7 +268,7 @@ const CostEstimationSimple: React.FC = () => {
                   </div>
                   <Statistic
                     title="Servers"
-                    value={data.resource_details.servers}
+                    value={data.cloud_infrastructure.servers.server_recommendations.length}
                     suffix="servers"
                   />
                 </div>
@@ -247,7 +280,7 @@ const CostEstimationSimple: React.FC = () => {
                   </div>
                   <Statistic
                     title="Databases"
-                    value={data.resource_details.databases}
+                    value={data.cloud_infrastructure.databases.database_recommendations.length}
                     suffix="databases"
                   />
                 </div>
@@ -259,7 +292,7 @@ const CostEstimationSimple: React.FC = () => {
                   </div>
                   <Statistic
                     title="File Shares"
-                    value={data.resource_details.file_shares}
+                    value={data.cloud_infrastructure.storage.storage_recommendations.length}
                     suffix="shares"
                   />
                 </div>
@@ -267,57 +300,130 @@ const CostEstimationSimple: React.FC = () => {
             </Row>
           </Card>
 
-          {/* AI Insights */}
+          {/* Migration Services */}
           <Card 
             title={
               <Space>
                 <RobotOutlined />
-                AI Cost Analysis
-                <Tag color={data.ai_insights.ai_available ? 'green' : 'orange'}>
-                  {data.ai_insights.confidence_level}% Confidence
+                Migration Services Breakdown
+                <Tag color="blue">
+                  ${data.migration_services.total_professional_services_cost.toLocaleString()}
                 </Tag>
-                {data.ai_insights.fallback_used && (
-                  <Tag color="blue">Rule-based</Tag>
-                )}
               </Space>
             } 
             style={{ marginBottom: 24 }}
           >
-            {data.ai_insights.fallback_used && (
-              <Alert 
-                message="Intelligent Rule-based Analysis Active" 
-                description={data.ai_insights.ai_status || "Using advanced rule-based cost optimization recommendations"}
-                type="info" 
-                style={{ marginBottom: 16 }}
-              />
-            )}
-            
             <Row gutter={[16, 16]}>
-              <Col xs={24} lg={12}>
-                <Title level={4}>💡 Cost Optimization Recommendations:</Title>
-                {data.ai_insights.recommendations.map((recommendation, index) => (
-                  <div key={index} style={{ marginBottom: 12, padding: '8px', backgroundColor: '#f6f8ff', borderRadius: '4px' }}>
-                    <Text strong style={{ color: '#1890ff' }}>#{index + 1}</Text>
-                    <Text style={{ marginLeft: 8 }}>{recommendation}</Text>
-                  </div>
-                ))}
-              </Col>
-              
-              <Col xs={24} lg={12}>
-                {data.ai_insights.cost_optimization_tips && (
-                  <>
-                    <Title level={4}>🎯 Quick Savings Tips:</Title>
-                    {data.ai_insights.cost_optimization_tips.map((tip, index) => (
-                      <div key={index} style={{ marginBottom: 12, padding: '8px', backgroundColor: '#f6ffed', borderRadius: '4px' }}>
-                        <Tag color="green" style={{ marginRight: 8 }}>TIP</Tag>
-                        <Text>{tip}</Text>
-                      </div>
-                    ))}
-                  </>
-                )}
-              </Col>
+              {data.migration_services.resource_breakdown.map((resource, index) => (
+                <Col xs={24} md={12} key={index}>
+                  <Card size="small" style={{ height: '100%' }}>
+                    <Statistic
+                      title={resource.role}
+                      value={resource.total_cost}
+                      formatter={(value) => formatCurrency(Number(value))}
+                      prefix={<UserOutlined />}
+                    />
+                    <div style={{ marginTop: 8 }}>
+                      <Text type="secondary">
+                        {resource.total_hours} hours over {resource.duration_weeks} weeks
+                      </Text>
+                      <br />
+                      <Text type="secondary">
+                        ${resource.rate_per_hour}/hour • {resource.hours_per_week} hrs/week
+                      </Text>
+                    </div>
+                  </Card>
+                </Col>
+              ))}
             </Row>
           </Card>
+
+          {/* AI Insights */}
+          {data.ai_insights && (
+            <Card 
+              title={
+                <Space>
+                  <RobotOutlined />
+                  AI Cost Analysis
+                  <Tag color={data.ai_insights.fallback_used ? 'orange' : 'green'}>
+                    {Math.round(data.ai_insights.confidence_level * 100)}% Confidence
+                  </Tag>
+                  {data.ai_insights.fallback_used && (
+                    <Tag color="blue">Rule-based</Tag>
+                  )}
+                  {!data.ai_insights.fallback_used && (
+                    <Tag color="purple">{data.ai_insights.ai_model_used}</Tag>
+                  )}
+                </Space>
+              } 
+              style={{ marginBottom: 24 }}
+            >
+              {data.ai_insights.fallback_used && (
+                <Alert 
+                  message="Using Advanced Rule-based Analysis" 
+                  description="AI services are temporarily unavailable. Using intelligent rule-based cost optimization recommendations."
+                  type="info" 
+                  style={{ marginBottom: 16 }}
+                />
+              )}
+              
+              {!data.ai_insights.fallback_used && (
+                <Alert 
+                  message="AI-Powered Cost Analysis Active" 
+                  description={`Analysis powered by ${data.ai_insights.ai_model_used} with ${Math.round(data.ai_insights.confidence_level * 100)}% confidence level.`}
+                  type="success" 
+                  style={{ marginBottom: 16 }}
+                />
+              )}
+              
+              <Row gutter={[16, 16]}>
+                <Col xs={24} lg={12}>
+                  <Card size="small" title="💡 Cost Optimization Tips" style={{ height: '100%' }}>
+                    {data.ai_insights.cost_optimization_tips.map((tip, index) => (
+                      <div key={index} style={{ marginBottom: 12, padding: '8px', backgroundColor: '#f6f8ff', borderRadius: '4px' }}>
+                        <Text strong style={{ color: '#1890ff' }}>#{index + 1}</Text>
+                        <Text style={{ marginLeft: 8 }}>{tip}</Text>
+                      </div>
+                    ))}
+                  </Card>
+                </Col>
+                
+                <Col xs={24} lg={12}>
+                  <Card size="small" title="🎯 AI Recommendations" style={{ height: '100%' }}>
+                    {data.ai_insights.recommendations.map((recommendation, index) => (
+                      <div key={index} style={{ marginBottom: 12, padding: '8px', backgroundColor: '#f6ffed', borderRadius: '4px' }}>
+                        <Tag color="green" style={{ marginRight: 8 }}>REC</Tag>
+                        <Text>{recommendation}</Text>
+                      </div>
+                    ))}
+                  </Card>
+                </Col>
+              </Row>
+              
+              {data.ai_insights.potential_savings && (
+                <Card size="small" title="💰 Potential Savings" style={{ marginTop: 16 }}>
+                  <Row gutter={16}>
+                    <Col xs={24} sm={12}>
+                      <Statistic
+                        title="Potential Annual Savings"
+                        value={data.ai_insights.potential_savings.annual_amount}
+                        formatter={(value) => formatCurrency(Number(value))}
+                        prefix={<DollarOutlined />}
+                      />
+                    </Col>
+                    <Col xs={24} sm={12}>
+                      <Statistic
+                        title="Savings Percentage"
+                        value={data.ai_insights.potential_savings.percentage}
+                        suffix="%"
+                        prefix={<BarChartOutlined />}
+                      />
+                    </Col>
+                  </Row>
+                </Card>
+              )}
+            </Card>
+          )}
         </>
       ) : (
         <Card>
