@@ -1240,254 +1240,201 @@ def health_check():
             'error': str(e)
         }), 500
 
-def _get_fallback_cost_estimation(infrastructure_data, cloud_provider, target_region):
-    """Fallback cost estimation when AI is not available"""
-    servers = infrastructure_data.get('servers', [])
-    databases = infrastructure_data.get('databases', [])
-    file_shares = infrastructure_data.get('file_shares', [])
-    
-    # Simple cost calculation based on resource count
-    server_monthly_cost = len(servers) * 200  # Approximate $200/server/month
-    db_monthly_cost = len(databases) * 300    # Approximate $300/db/month
-    storage_monthly_cost = len(file_shares) * 50  # Approximate $50/share/month
-    
-    total_monthly = server_monthly_cost + db_monthly_cost + storage_monthly_cost
-    total_annual = total_monthly * 12
-    migration_cost = (len(servers) + len(databases)) * 1000  # $1000 per major component
-    
-    return {
-        "grand_total": {
-            "annual_cloud_cost": total_annual,
-            "one_time_migration_cost": migration_cost,
-            "total_first_year_cost": total_annual + migration_cost
-        },
-        "cloud_infrastructure": {
-            "servers": {
-                "total_monthly_cost": server_monthly_cost,
-                "total_annual_cost": server_monthly_cost * 12,
-                "server_recommendations": [
-                    {
-                        "server_id": f"Server-{i+1}",
-                        "current_specs": "Standard server",
-                        "recommended_instance": "t3.medium",
-                        "monthly_cost": 200,
-                        "annual_cost": 2400,
-                        "optimization_notes": "Basic estimation - requires detailed analysis"
-                    } for i in range(len(servers))
-                ]
-            },
-            "databases": {
-                "total_monthly_cost": db_monthly_cost,
-                "total_annual_cost": db_monthly_cost * 12,
-                "database_recommendations": [
-                    {
-                        "db_name": f"Database-{i+1}",
-                        "db_type": "MySQL",
-                        "recommended_instance": "db.t3.medium",
-                        "size_gb": 100,
-                        "monthly_cost": 300,
-                        "annual_cost": 3600,
-                        "optimization_notes": "Basic estimation - requires detailed analysis"
-                    } for i in range(len(databases))
-                ]
-            },
-            "storage": {
-                "total_monthly_cost": storage_monthly_cost,
-                "total_annual_cost": storage_monthly_cost * 12,
-                "storage_recommendations": [
-                    {
-                        "share_name": f"FileShare-{i+1}",
-                        "size_gb": 500,
-                        "recommended_storage": "EFS",
-                        "access_pattern": "General Purpose",
-                        "monthly_cost": 50,
-                        "annual_cost": 600,
-                        "optimization_notes": "Basic estimation - requires detailed analysis"
-                    } for i in range(len(file_shares))
-                ]
-            },
-            "total_monthly_cost": total_monthly,
-            "total_annual_cost": total_annual
-        },
-        "migration_services": {
-            "total_professional_services_cost": migration_cost,
-            "resource_breakdown": [
-                {
-                    "role": "Cloud Architect",
-                    "rate_per_hour": 150,
-                    "hours_per_week": 20,
-                    "duration_weeks": 4,
-                    "total_hours": 80,
-                    "total_cost": migration_cost * 0.6
-                },
-                {
-                    "role": "Migration Specialist",
-                    "rate_per_hour": 125,
-                    "hours_per_week": 20,
-                    "duration_weeks": 4,
-                    "total_hours": 80,
-                    "total_cost": migration_cost * 0.4
-                }
-            ]
-        },
-        "ai_insights": {
-            "confidence_level": 0.65,
-            "cost_optimization_tips": [
-                "Consider reserved instances for 20-72% savings",
-                "Use auto-scaling to optimize costs",
-                "Implement S3 Intelligent Tiering for storage",
-                "Right-size instances based on actual usage"
-            ],
-            "potential_savings": {
-                "percentage": 25,
-                "annual_amount": total_annual * 0.25
-            },
-            "recommendations": [
-                "Detailed assessment needed for accurate pricing",
-                "Consider phased migration approach",
-                "Implement cost monitoring from day one"
-            ],
-            "ai_model_used": "fallback",
-            "fallback_used": True
-        }
-    }
+# ==================== CONFIGURATION ENDPOINTS ====================
 
-def _get_fallback_migration_strategy(infrastructure_data, cloud_provider, complexity):
-    """Fallback migration strategy when AI is not available"""
-    servers = infrastructure_data.get('servers', [])
-    databases = infrastructure_data.get('databases', [])
-    file_shares = infrastructure_data.get('file_shares', [])
-    
-    total_components = len(servers) + len(databases) + len(file_shares)
-    duration_weeks = max(8, total_components * 2)
-    
-    return {
-        "migration_approach": {
-            "overall_strategy": "Lift and Shift",
-            "estimated_duration": f"{duration_weeks} weeks",
-            "complexity_level": complexity.title(),
-            "rationale": f"Based on {total_components} components requiring migration"
-        },
-        "ai_insights": {
-            "confidence_level": 0.70,
-            "ai_model_used": "fallback",
-            "fallback_used": True,
-            "strategic_recommendations": [
-                "Perform detailed assessment before migration",
-                "Consider pilot migration for critical applications",
-                "Plan for adequate testing phases"
-            ]
-        }
-    }
-
-def _generate_fallback_cost_data(servers, databases, file_shares):
-    """Generate fallback cost estimation data for export when AI is unavailable"""
-    # Calculate basic costs
-    total_servers = len(servers)
-    total_databases = len(databases)
-    total_storage_gb = sum(fs.get('size_gb', 100) for fs in file_shares)
-    
-    # Basic cost calculations
-    server_monthly_cost = total_servers * 200  # $200 per server per month
-    database_monthly_cost = total_databases * 300  # $300 per database per month
-    storage_monthly_cost = total_storage_gb * 0.023  # $0.023 per GB per month
-    
-    annual_cloud_cost = (server_monthly_cost + database_monthly_cost + storage_monthly_cost) * 12
-    migration_cost = (total_servers * 500) + (total_databases * 1000) + (total_storage_gb * 0.10)
-    
-    return {
-        "grand_total": {
-            "annual_cloud_cost": annual_cloud_cost,
-            "one_time_migration_cost": migration_cost,
-            "total_first_year_cost": annual_cloud_cost + migration_cost
-        },
-        "cloud_infrastructure": {
-            "servers": {
-                "total_monthly_cost": server_monthly_cost,
-                "total_annual_cost": server_monthly_cost * 12
-            },
-            "databases": {
-                "total_monthly_cost": database_monthly_cost,
-                "total_annual_cost": database_monthly_cost * 12
-            },
-            "storage": {
-                "total_monthly_cost": storage_monthly_cost,
-                "total_annual_cost": storage_monthly_cost * 12
+@app.route('/api/cloud-preferences', methods=['GET', 'POST'])
+def handle_cloud_preferences():
+    try:
+        if request.method == 'POST':
+            data = request.json
+            logger.info(f"Creating/updating cloud preferences: {data}")
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Check if record exists
+            cursor.execute('SELECT COUNT(*) FROM cloud_preferences')
+            count = cursor.fetchone()[0]
+            
+            if count > 0:
+                # Update existing record
+                cursor.execute('''
+                    UPDATE cloud_preferences 
+                    SET cloud_provider = ?, region = ?, preferred_services = ?, network_config = ?, updated_at = ?
+                    WHERE id = (SELECT MIN(id) FROM cloud_preferences)
+                ''', (data['cloud_provider'], data['region'], data['preferred_services'], 
+                      data['network_config'], datetime.now().isoformat()))
+            else:
+                # Insert new record
+                cursor.execute('''
+                    INSERT INTO cloud_preferences (cloud_provider, region, preferred_services, network_config, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (data['cloud_provider'], data['region'], data['preferred_services'], 
+                      data['network_config'], datetime.now().isoformat(), datetime.now().isoformat()))
+            
+            conn.commit()
+            conn.close()
+            return jsonify({'success': True, 'message': 'Cloud preferences saved successfully'})
+        
+        # GET request
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM cloud_preferences ORDER BY id LIMIT 1')
+        row = cursor.fetchone()
+        
+        if row:
+            cloud_preference = dict_from_row(row)
+        else:
+            # Return default values if no record exists
+            cloud_preference = {
+                'id': None,
+                'cloud_provider': 'AWS',
+                'region': 'us-east-1',
+                'preferred_services': 'EC2,RDS,S3',
+                'network_config': 'VPC with public/private subnets'
             }
-        },
-        "ai_insights": {
-            "confidence_level": 0.75,
-            "ai_model_used": "fallback",
-            "fallback_used": True,
-            "cost_optimization_tips": [
-                "Consider Reserved Instances for 20-30% savings",
-                "Implement auto-scaling to optimize resource usage",
-                "Use appropriate storage tiers for different data types",
-                "Regular cost monitoring and optimization reviews"
-            ]
-        }
-    }
+        
+        conn.close()
+        logger.info(f"Retrieved cloud preferences: {cloud_preference}")
+        return jsonify(cloud_preference)
+        
+    except Exception as e:
+        logger.error(f"Error in /api/cloud-preferences: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
 
-def _generate_fallback_strategy_data(servers, databases, file_shares):
-    """Generate fallback migration strategy data for export when AI is unavailable"""
-    total_components = len(servers) + len(databases) + len(file_shares)
-    
-    # Determine complexity based on infrastructure size
-    if total_components < 10:
-        complexity = "low"
-        duration_weeks = 8
-    elif total_components < 25:
-        complexity = "medium" 
-        duration_weeks = 12
-    else:
-        complexity = "high"
-        duration_weeks = 16
-    
-    return {
-        "migration_phases": [
-            {
-                "phase": 1,
-                "name": "Assessment & Planning",
-                "duration": "3 weeks",
-                "components": ["Infrastructure Assessment", "Application Dependencies", "Risk Analysis"]
-            },
-            {
-                "phase": 2,
-                "name": "Infrastructure Setup",
-                "duration": "4 weeks", 
-                "components": ["Cloud Environment Setup", "Network Configuration", "Security Implementation"]
-            },
-            {
-                "phase": 3,
-                "name": "Migration Execution",
-                "duration": f"{duration_weeks - 7} weeks",
-                "components": ["Server Migration", "Database Migration", "Data Transfer"]
-            },
-            {
-                "phase": 4,
-                "name": "Testing & Cutover",
-                "duration": "2 weeks",
-                "components": ["System Testing", "User Acceptance Testing", "Go-Live"]
+@app.route('/api/cloud-preferences/<int:pref_id>', methods=['PUT', 'DELETE'])
+def handle_cloud_preference_by_id(pref_id):
+    try:
+        if request.method == 'PUT':
+            data = request.json
+            logger.info(f"Updating cloud preference {pref_id}: {data}")
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE cloud_preferences 
+                SET cloud_provider = ?, region = ?, preferred_services = ?, network_config = ?, updated_at = ?
+                WHERE id = ?
+            ''', (data['cloud_provider'], data['region'], data['preferred_services'], 
+                  data['network_config'], datetime.now().isoformat(), pref_id))
+            
+            conn.commit()
+            conn.close()
+            return jsonify({'success': True, 'message': 'Cloud preference updated successfully'})
+            
+        elif request.method == 'DELETE':
+            logger.info(f"Deleting cloud preference {pref_id}")
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM cloud_preferences WHERE id = ?', (pref_id,))
+            conn.commit()
+            conn.close()
+            
+            return jsonify({'success': True, 'message': 'Cloud preference deleted successfully'})
+            
+    except Exception as e:
+        logger.error(f"Error in /api/cloud-preferences/{pref_id}: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/business-constraints', methods=['GET', 'POST'])
+def handle_business_constraints():
+    try:
+        if request.method == 'POST':
+            data = request.json
+            logger.info(f"Creating/updating business constraints: {data}")
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Check if record exists
+            cursor.execute('SELECT COUNT(*) FROM business_constraints')
+            count = cursor.fetchone()[0]
+            
+            if count > 0:
+                # Update existing record
+                cursor.execute('''
+                    UPDATE business_constraints 
+                    SET migration_window = ?, cutover_date = ?, downtime_tolerance = ?, budget_cap = ?, updated_at = ?
+                    WHERE id = (SELECT MIN(id) FROM business_constraints)
+                ''', (data['migration_window'], data['cutover_date'], data['downtime_tolerance'], 
+                      data['budget_cap'], datetime.now().isoformat()))
+            else:
+                # Insert new record
+                cursor.execute('''
+                    INSERT INTO business_constraints (migration_window, cutover_date, downtime_tolerance, budget_cap, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (data['migration_window'], data['cutover_date'], data['downtime_tolerance'], 
+                      data['budget_cap'], datetime.now().isoformat(), datetime.now().isoformat()))
+            
+            conn.commit()
+            conn.close()
+            return jsonify({'success': True, 'message': 'Business constraints saved successfully'})
+        
+        # GET request
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM business_constraints ORDER BY id LIMIT 1')
+        row = cursor.fetchone()
+        
+        if row:
+            business_constraint = dict_from_row(row)
+        else:
+            # Return default values if no record exists
+            business_constraint = {
+                'id': None,
+                'migration_window': 'Business Hours',
+                'cutover_date': '2025-12-01',
+                'downtime_tolerance': 'Low',
+                'budget_cap': '500000'
             }
-        ],
-        "migration_approach": {
-            "overall_strategy": "Hybrid Lift-and-Shift with Optimization",
-            "estimated_duration": f"{duration_weeks} weeks",
-            "complexity_level": complexity.title(),
-            "rationale": f"Based on {total_components} components requiring migration"
-        },
-        "ai_insights": {
-            "confidence_level": 0.70,
-            "ai_model_used": "fallback",
-            "fallback_used": True,
-            "strategic_recommendations": [
-                "Perform detailed assessment before migration",
-                "Consider pilot migration for critical applications", 
-                "Plan for adequate testing phases",
-                "Ensure proper backup and rollback procedures"
-            ]
-        }
-    }
+        
+        conn.close()
+        logger.info(f"Retrieved business constraints: {business_constraint}")
+        return jsonify(business_constraint)
+        
+    except Exception as e:
+        logger.error(f"Error in /api/business-constraints: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/business-constraints/<int:constraint_id>', methods=['PUT', 'DELETE'])
+def handle_business_constraint_by_id(constraint_id):
+    try:
+        if request.method == 'PUT':
+            data = request.json
+            logger.info(f"Updating business constraint {constraint_id}: {data}")
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE business_constraints 
+                SET migration_window = ?, cutover_date = ?, downtime_tolerance = ?, budget_cap = ?, updated_at = ?
+                WHERE id = ?
+            ''', (data['migration_window'], data['cutover_date'], data['downtime_tolerance'], 
+                  data['budget_cap'], datetime.now().isoformat(), constraint_id))
+            
+            conn.commit()
+            conn.close()
+            return jsonify({'success': True, 'message': 'Business constraint updated successfully'})
+            
+        elif request.method == 'DELETE':
+            logger.info(f"Deleting business constraint {constraint_id}")
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM business_constraints WHERE id = ?', (constraint_id,))
+            conn.commit()
+            conn.close()
+            
+            return jsonify({'success': True, 'message': 'Business constraint deleted successfully'})
+            
+    except Exception as e:
+        logger.error(f"Error in /api/business-constraints/{constraint_id}: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     logger.info("Starting Real Data Backend - serves ONLY database data")

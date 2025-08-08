@@ -53,8 +53,8 @@ const BusinessConstraints: React.FC = () => {
     setLoading(true);
     try {
       const response = await axios.get(`${API_BASE_URL}/business-constraints`);
-      if (response.data && response.data.length > 0) {
-        const constraint = response.data[0]; // Assuming single configuration
+      if (response.data) {
+        const constraint = response.data; // Backend returns single object
         setBusinessConstraint(constraint);
         
         // Convert date string to dayjs object for DatePicker

@@ -80,8 +80,8 @@ const CloudPreferences: React.FC = () => {
     setLoading(true);
     try {
       const response = await axios.get(`${API_BASE_URL}/cloud-preferences`);
-      if (response.data && response.data.length > 0) {
-        const preference = response.data[0]; // Assuming single configuration
+      if (response.data) {
+        const preference = response.data; // Backend returns single object
         setCloudPreference(preference);
         
         // Parse preferred services if it's a JSON string
@@ -89,7 +89,7 @@ const CloudPreferences: React.FC = () => {
         try {
           services = JSON.parse(preference.preferred_services || '[]');
         } catch {
-          services = [];
+          services = preference.preferred_services ? preference.preferred_services.split(',') : [];
         }
         
         form.setFieldsValue({
