@@ -174,13 +174,11 @@ const ResourceRates: React.FC = () => {
     setModalVisible(false);
     setEditingRate(null);
     setPreviewCost(0);
-    form.resetFields();
   };
 
   // Handle edit resource rate
   const handleEdit = (rate: ResourceRate) => {
     setEditingRate(rate);
-    form.setFieldsValue(rate);
     setPreviewCost((rate.duration_weeks || 0) * (rate.hours_per_week || 0) * (rate.rate_per_hour || 0));
     setModalVisible(true);
   };
@@ -188,14 +186,6 @@ const ResourceRates: React.FC = () => {
   // Handle add new resource rate
   const handleAdd = () => {
     setEditingRate(null);
-    form.resetFields();
-    // Set initial values when adding
-    form.setFieldsValue({
-      role: '',
-      duration_weeks: 12,
-      hours_per_week: 40,
-      rate_per_hour: 125
-    });
     setPreviewCost(12 * 40 * 125); // Calculate initial preview
     setModalVisible(true);
   };
@@ -362,6 +352,7 @@ const ResourceRates: React.FC = () => {
         width={600}
         destroyOnClose={true}
         maskClosable={false}
+        key={editingRate ? `edit-${editingRate.id}` : 'add-new'}
       >
         <Form
           form={form}
@@ -369,6 +360,17 @@ const ResourceRates: React.FC = () => {
           onFinish={handleSubmit}
           onValuesChange={updatePreviewCost}
           preserve={false}
+          initialValues={editingRate ? {
+            role: editingRate.role,
+            duration_weeks: editingRate.duration_weeks,
+            hours_per_week: editingRate.hours_per_week,
+            rate_per_hour: editingRate.rate_per_hour
+          } : {
+            role: '',
+            duration_weeks: 12,
+            hours_per_week: 40,
+            rate_per_hour: 125
+          }}
         >
           <Form.Item
             name="role"

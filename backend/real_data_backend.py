@@ -521,26 +521,61 @@ def generate_timeline():
         data = request.get_json()
         logger.info(f"Timeline generation request: {data}")
         
+        # Get infrastructure data to calculate duration
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get counts for duration calculation
+        cursor.execute('SELECT COUNT(*) FROM servers')
+        server_count = cursor.fetchone()[0]
+        
+        cursor.execute('SELECT COUNT(*) FROM databases')
+        database_count = cursor.fetchone()[0]
+        
+        cursor.execute('SELECT COUNT(*) FROM file_shares')
+        file_share_count = cursor.fetchone()[0]
+        
+        conn.close()
+        
+        # Calculate duration based on infrastructure size (same logic as migration strategy)
+        total_components = server_count + database_count + file_share_count
+        duration_weeks = max(8, total_components * 2)
+        duration_months = round(duration_weeks / 4.3, 1)  # More accurate weeks to months conversion
+        
         # Get custom start date from request or use default
         start_date = data.get('start_date', '2025-09-01') if data else '2025-09-01'
         
-        # Calculate end date based on 16-week duration
+        # Calculate end date based on calculated duration
         from datetime import timedelta
         start_dt = datetime.strptime(start_date, '%Y-%m-%d')
-        end_dt = start_dt + timedelta(weeks=16)
+        end_dt = start_dt + timedelta(weeks=duration_weeks)
         end_date = end_dt.strftime('%Y-%m-%d')
         
-        logger.info(f"Timeline dates: {start_date} to {end_date}")
+        logger.info(f"Timeline dates: {start_date} to {end_date} ({duration_weeks} weeks, {total_components} components)")
         
-        # Timeline data with dynamic dates
+        # Calculate phase durations that add up to total duration
+        phase1_duration = max(3, round(duration_weeks * 0.25))
+        phase2_duration = max(4, round(duration_weeks * 0.4))
+        phase3_duration = max(4, round(duration_weeks * 0.25))
+        phase4_duration = max(2, duration_weeks - phase1_duration - phase2_duration - phase3_duration)
+        
+        # Adjust if total doesn't match
+        total_calculated = phase1_duration + phase2_duration + phase3_duration + phase4_duration
+        if total_calculated != duration_weeks:
+            # Adjust the largest phase to match
+            phase2_duration += (duration_weeks - total_calculated)
+        
+        logger.info(f"Phase durations: P1={phase1_duration}, P2={phase2_duration}, P3={phase3_duration}, P4={phase4_duration}, Total={phase1_duration + phase2_duration + phase3_duration + phase4_duration}")
+        
+        # Timeline data with dynamic dates and duration
         timeline_data = {
             "project_overview": {
-                "total_duration_weeks": 16,
-                "total_duration_months": 4,
+                "total_duration_weeks": duration_weeks,
+                "total_duration_months": duration_months,
                 "estimated_start_date": start_date,
                 "estimated_end_date": end_date,
                 "confidence_level": "85%",
-                "complexity_score": 7.5
+                "complexity_score": min(10, total_components * 0.5)  # Dynamic complexity based on component count
             },
             "phases": [
                 {
@@ -548,8 +583,8 @@ def generate_timeline():
                     "name": "Assessment & Planning",
                     "description": "Initial assessment and detailed planning",
                     "start_week": 1,
-                    "end_week": 4,
-                    "duration_weeks": 4,
+                    "end_week": phase1_duration,
+                    "duration_weeks": phase1_duration,
                     "dependencies": [],
                     "milestones": ["Infrastructure Assessment Complete", "Migration Plan Approved"],
                     "components": ["Server Discovery", "Application Mapping", "Risk Assessment"],
@@ -561,9 +596,9 @@ def generate_timeline():
                     "id": 2,
                     "name": "Infrastructure Migration",
                     "description": "Migrate servers and infrastructure components",
-                    "start_week": 5,
-                    "end_week": 10,
-                    "duration_weeks": 6,
+                    "start_week": phase1_duration + 1,
+                    "end_week": phase1_duration + phase2_duration,
+                    "duration_weeks": phase2_duration,
                     "dependencies": ["Phase 1"],
                     "milestones": ["Test Environment Ready", "Production Infrastructure Live"],
                     "components": ["Server Migration", "Network Configuration", "Security Setup"],
@@ -575,9 +610,9 @@ def generate_timeline():
                     "id": 3,
                     "name": "Data Migration",
                     "description": "Migrate databases and file shares",
-                    "start_week": 8,
-                    "end_week": 14,
-                    "duration_weeks": 7,
+                    "start_week": phase1_duration + phase2_duration + 1,
+                    "end_week": phase1_duration + phase2_duration + phase3_duration,
+                    "duration_weeks": phase3_duration,
                     "dependencies": ["Phase 1"],
                     "milestones": ["Data Sync Established", "Data Validation Complete"],
                     "components": ["Database Migration", "File Share Migration", "Data Validation"],
@@ -589,9 +624,9 @@ def generate_timeline():
                     "id": 4,
                     "name": "Application Cutover",
                     "description": "Final application migration and cutover",
-                    "start_week": 15,
-                    "end_week": 16,
-                    "duration_weeks": 2,
+                    "start_week": phase1_duration + phase2_duration + phase3_duration + 1,
+                    "end_week": duration_weeks,
+                    "duration_weeks": phase4_duration,
                     "dependencies": ["Phase 2", "Phase 3"],
                     "milestones": ["Application Migration Complete", "Production Cutover"],
                     "components": ["Application Deployment", "DNS Cutover", "Monitoring Setup"],
@@ -604,21 +639,21 @@ def generate_timeline():
             "resource_allocation": [
                 {
                     "role": "Cloud Architect",
-                    "weeks_allocated": 4,
+                    "weeks_allocated": max(3, round(duration_weeks * 0.25)),
                     "overlap_phases": [1],
                     "peak_utilization_week": 2
                 },
                 {
                     "role": "Database Expert",
-                    "weeks_allocated": 8,
+                    "weeks_allocated": max(4, round(duration_weeks * 0.5)),
                     "overlap_phases": [1, 3],
-                    "peak_utilization_week": 10
+                    "peak_utilization_week": round(duration_weeks * 0.6)
                 },
                 {
                     "role": "DevOps Engineer",
-                    "weeks_allocated": 6,
+                    "weeks_allocated": max(4, round(duration_weeks * 0.4)),
                     "overlap_phases": [2, 4],
-                    "peak_utilization_week": 6
+                    "peak_utilization_week": round(duration_weeks * 0.4)
                 }
             ],
             "risk_mitigation": [
