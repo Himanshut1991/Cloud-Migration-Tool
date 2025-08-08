@@ -314,9 +314,6 @@ const Timeline: React.FC = () => {
     // Don't auto-fetch to prevent blank page, let user click refresh for real data
   }, []);
 
-  // Debug logging
-  console.log('Timeline render - loading:', loading, 'error:', error, 'data available:', !!data);
-
   const getPhaseColor = (status: string) => {
     switch (status) {
       case 'completed': return 'green';
